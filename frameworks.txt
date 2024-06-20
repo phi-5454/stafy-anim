@@ -1,0 +1,7 @@
+Rendering: THREE
+
+Graphing: plotly.js
+
+Latex rendering: mathjax
+
+Ridgidbody physics: Bullet?
