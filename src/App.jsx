@@ -14,44 +14,55 @@ import Plot from "react-plotly.js";
 import * as THREE from "three";
 import { useEffect, useRef } from "react";
 import { Canvas, useThree } from "@react-three/fiber";
+import PhysicsCanvas from "./PhysicsCanvas";
 
-const aba = [];
+const aba = [1, 2, 3, 4, 5];
 let ba = 0;
+let frac = 0;
+
+function getRandomInt(min, max) {
+  const minCeiled = Math.ceil(min);
+  const maxFloored = Math.floor(max);
+  return Math.floor(Math.random() * (maxFloored - minCeiled) + minCeiled); // The maximum is exclusive and the minimum is inclusive
+}
 
 function App() {
-  const [[a, b], setAB] = useState([[], 0]);
+  const [a, setA] = useState([1, 2, 3, 4, 5]);
 
-  const up = () => {
-    setAB([[...a, b], (b + 1) % 3]);
+  //let n = useRef(1);
+  useEffect(() => {
+    const up = () => {
+      //setAB([[...a, b], (b + 1) % 3]);
+      frac += 1;
+      //setA(a.map((x) => x + 1));
+      //aba.push(ba);
+      /*
+      aba.forEach(function (element, index, arr) {
+        aba[index] = (element * (frac - 1.0)) / frac; // Example operation: multiply each element by 2
+      });
+      */
+
+      ba = (ba + 1) % 5;
+      let i = getRandomInt(0, 5);
+      aba[i] += 1 / frac; //console.log(aba);
+      aba[i] += 1; //console.log(aba);
+      requestAnimationFrame(up);
+    };
     requestAnimationFrame(up);
-    aba.push(ba);
-    ba += 1;
-    console.log(aba);
-  };
-  requestAnimationFrame(up);
+
+    return () => {};
+  });
 
   const cm = BlackbodyColormap;
   return (
     <>
-      <Canvas>
-        <color attach="background" args={["magenta"]} />
-        <gridHelper
-          args={[10, 10, `white`, `gray`]}
-          rotation={[Math.PI / 2, 0, 0]}
-        />
-        <Plane scale={[2, 2, 1]}>
-          <meshBasicMaterial color={"black"} />
-        </Plane>
-        <Plane>
-          <meshBasicMaterial color={cm.getColor(50, 0, 100)} />
-        </Plane>
-        <Plane args={[0.5, 200, 1]} scale={[0.5, 2, 0]}>
-          <meshBasicMaterial color={"white"} />
-        </Plane>
-      </Canvas>
-      <RealtimePlot data={a} />
+      <PhysicsCanvas />
     </>
   );
 }
 
+/*
+ *
+      <RealtimePlot data={aba} />
+ * */
 export default App;

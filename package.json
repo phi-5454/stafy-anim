@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "host": "vite --host",
     "build": "vite build",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
@@ -14,12 +15,14 @@
     "@react-three/fiber": "^8.16.8",
     "@types/three": "^0.165.0",
     "colormap": "^2.3.2",
+    "dat.gui": "^0.7.9",
     "ls": "^0.2.1",
     "plotly.js": "^2.33.0",
     "plotly.js-dist": "^2.33.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-plotly.js": "^2.6.0",
+    "simple-statistics": "^7.8.3",
     "three": "^0.165.0"
   },
   "devDependencies": {

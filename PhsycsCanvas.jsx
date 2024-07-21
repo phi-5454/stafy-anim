@@ -9,6 +9,7 @@ export default function RealtimePlot({ data }) {
   const n = useRef(1);
 
   let dt = useRef(data);
+  console.log("CURRGAT ", dt.current);
 
   //let n = useRef(1);
   useEffect(() => {
@@ -31,6 +32,8 @@ export default function RealtimePlot({ data }) {
     let cont = true;
     function update() {
       n.current = Math.max(...dt.current);
+      console.log("CURRGAT ", dt.current);
+      console.log("CURRGAT ", n.current);
 
       plotRef.current &&
         Plotly.animate(
@@ -68,7 +71,6 @@ export default function RealtimePlot({ data }) {
       cont = false;
       // TODO: Can be done with animationframeid
       cc && Plotly.purge(cc);
-      // Alternatively: clearInterval, cancelAnimationFrame
     };
   });
 
