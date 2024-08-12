@@ -27,32 +27,6 @@ function getRandomInt(min, max) {
 }
 
 function App() {
-  const [a, setA] = useState([1, 2, 3, 4, 5]);
-
-  //let n = useRef(1);
-  useEffect(() => {
-    const up = () => {
-      //setAB([[...a, b], (b + 1) % 3]);
-      frac += 1;
-      //setA(a.map((x) => x + 1));
-      //aba.push(ba);
-      /*
-      aba.forEach(function (element, index, arr) {
-        aba[index] = (element * (frac - 1.0)) / frac; // Example operation: multiply each element by 2
-      });
-      */
-
-      ba = (ba + 1) % 5;
-      let i = getRandomInt(0, 5);
-      aba[i] += 1 / frac; //console.log(aba);
-      aba[i] += 1; //console.log(aba);
-      requestAnimationFrame(up);
-    };
-    requestAnimationFrame(up);
-
-    return () => {};
-  });
-
   const cm = BlackbodyColormap;
   return (
     <>

@@ -10,26 +10,42 @@ import BlackbodyColormap from "./ColorGradient";
 import { binomialDistribution } from "simple-statistics";
 import("simple-statistics");
 
+// get random in [0, max) (exclusive)
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
+
+function makeStateArray(latticeSize) {
+  // Int size in bytes
+  const INT_SIZE = 4;
+
+  const arrSize = latticeSize * INT_SIZE;
+  const stateArr = new ArrayBuffer(arrSize);
+  return new Int32Array(stateArr);
+}
+
 // TODO: Component does too many things, consider splitting up
 export default function PhysicsCanvas({ data }) {
   const [pdata, setPdata] = useState([]);
   const [latticeDims, setLatticeDims] = useState([8, 8]);
+
+  const latticeSize = latticeDims[0] * latticeDims[1];
+
   const [energyQuanta, setEnergyQuanta] = useState(10);
+  const [useKey, setUseKey] = useState(0);
+  const [latticeState, setLatticeState] = useState(makeStateArray(latticeSize));
 
-  // The size of the "system" we're observing
-  const systemSize = 3;
+  // TODO: make this reference a usestate.
+  const state = useRef(makeStateArray(latticeSize));
 
-  // Int size in bytes
-  const INT_SIZE = 4;
+  // TODO: make the accum a state, not a ref
 
-  const entries = latticeDims[0] * latticeDims[1];
-  const arrSize = entries * INT_SIZE;
-  const stateArr = new ArrayBuffer(arrSize);
+  // deltatime really deltatime, since settimeout will always have some overhead
+  const params = useRef({ deltatime: 100, systemSize: latticeSize / 2 });
 
-  const state = useRef(new Int32Array(stateArr));
-
+  // [system size][number of quanta]
   const accumState = useRef(
-    Array.from({ length: entries }, () =>
+    Array.from({ length: latticeSize }, () =>
       Array.from({ length: energyQuanta + 1 }, () => 0),
     ),
   );
@@ -50,16 +66,21 @@ export default function PhysicsCanvas({ data }) {
     let remainingQuanta = n;
     let x = target.length;
 
-    for (let i = 0; i < target.length - 1; i++) {
+    // zero the array
+    for (let i = 0; i < target.length; i++) {
+      target[i] = 0;
+    }
+
+    // Fill the grid
+    for (let i = 0; i < x - 1 && remainingQuanta != 0; i++) {
       // Calculate the probability for the current bin
       const p = 1 / (x - i);
       // Determine the number of quanta in this bin using a binomial distribution
       var dist = binomialDistribution(remainingQuanta, p);
-      //console.log("DIST: " + dist);
       const randVal = Math.random();
 
       let quantaInCell = 0;
-      for (let j = 0, c = 0.0; j < remainingQuanta; j++) {
+      for (let j = 0, c = 0.0; j <= remainingQuanta; j++) {
         c += dist[j];
         if (randVal < c) {
           quantaInCell = j;
@@ -67,42 +88,64 @@ export default function PhysicsCanvas({ data }) {
         }
       }
 
+      // The rest go into the last bin
       Math.round(remainingQuanta * p);
 
       target[i] = quantaInCell;
       // Subtract the balls placed in this container from the remaining balls
       remainingQuanta -= quantaInCell;
-      //console.log(remainingQuanta);
     }
 
-    // The last container gets all remaining balls
-    target[target.length - 1] = remainingQuanta;
+    // The last container gets all remaining quanta
+    target[x - 1] = remainingQuanta;
+
+    /*
+    // A dumb (inelegant) solution: randomly pick for each quantum
+    for (let i = 0; i < remainingQuanta; i++) {
+      let ind = getRandomInt(latticeSize);
+      target[ind] += 1;
+      //const element = remainingQuanta[i];
+    }
+    console.log(target);
+    */
   }
 
   distributeQuanta(energyQuanta, state.current);
-  //console.log(phaseState.current, " asdlkjfölsaföjdljlsajföl");
 
-  const valueRef = useRef({ value: 10 }); // Mutable reference to the value
   useEffect(() => {
     const gui = new dat.GUI();
-    gui.add(valueRef.current, "value", 0, 100);
+
+    var obj = {
+      restartSim: function () {
+        //setUseKey(useKey + 1);
+        console.log("clicked");
+        state.current = makeStateArray(latticeSize);
+        // TODO: extract into function
+        accumState.current = Array.from({ length: latticeSize }, () =>
+          Array.from({ length: energyQuanta + 1 }, () => 0),
+        );
+      },
+    };
+
+    gui.add(obj, "restartSim", "Restart simulation");
+
+    //gui.add(params.current, "graph update frequency", 10, 1000);
+    gui.add(params.current, "deltatime", 10, 1000);
+    gui.add(params.current, "systemSize", 1, latticeSize).step(1);
     /*
       .add(valueRef.current, "value", 0, 100)
       .name("Value")
       .onChange((value) => {
         valueRef.current = value;
-        console.log("Value updated to:", valueRef.current);
       });
       */
 
     return () => {
       gui.destroy();
     };
-  }, []);
+  }, [latticeSize, useKey]);
 
-  const interval = 500;
   useEffect(() => {
-    let anID;
     const simulate = () => {
       distributeQuanta(energyQuanta, state.current);
 
@@ -114,12 +157,10 @@ export default function PhysicsCanvas({ data }) {
         return sum;
       });
 
-      //console.log("ACCUMB: ", accumState.current);
+      // Keep track of system's configurations
       partialSums.forEach((value, index) => {
         accumState.current[index][value] += 1;
       });
-      //console.log("PART: ", partialSums);
-      //console.log("ACCUM: ", accumState.current[systemSize]);
 
       /*
       let sum = a.slice(0, systemSize).reduce((acc, curr) => {
@@ -134,25 +175,26 @@ export default function PhysicsCanvas({ data }) {
       //accumState.current[partialSums[systemSize]] += 1;
 
       maxind.current = 0;
-      for (let i = 0; i < accumState.current[systemSize].length; i++) {
+      for (let i = 0; i < energyQuanta + 1; i++) {
         if (accumState.current[i] != 0) {
           maxind.current = i;
         }
       }
 
-      setPdata(Array.from(accumState.current[1]));
-      //console.log("Current acumstate ", accumState.current);
+      setPdata(Array.from(accumState.current[params.current.systemSize - 1]));
 
-      //anID = requestAnimationFrame(simulate);
-      anID = setTimeout(simulate, interval);
+      //updaterID = requestAnimationFrame(simulate);
+      updaterID = setTimeout(simulate, params.current.deltatime);
     };
-    simulate();
+    let updaterID = setTimeout(simulate, params.current.deltatime);
+    //updaterID = setTimeout(simulate, 0);
 
     return () => {
-      //cancelAnimationFrame(anID);
-      clearInterval(anID);
+      //cancelAnimationFrame(updaterID);
+      console.log("aaAA");
+      clearTimeout(updaterID);
     };
-  }, [entries, energyQuanta]);
+  }, [latticeSize, energyQuanta, useKey]);
 
   return (
     <div>
@@ -178,11 +220,15 @@ export default function PhysicsCanvas({ data }) {
             y: pdata,
             type: "bar",
           },
+          {
+            y: pdata,
+            type: "lines",
+          },
         ]}
         layout={{
           xaxis: {
-            title: "X Axis",
-            range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
+            title: maxind.current,
+            //range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
           },
         }}
         config={{ scrollZoom: false, editable: false, displayModeBar: false }}
@@ -190,7 +236,3 @@ export default function PhysicsCanvas({ data }) {
     </div>
   );
 }
-/*
- *
-      <RealtimePlot data={phaseState.current} />
- * */
