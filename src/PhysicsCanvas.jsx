@@ -8,12 +8,42 @@ import RealtimePlot from "./RealtimePlot";
 import { Plane } from "@react-three/drei";
 import BlackbodyColormap from "./ColorGradient";
 import { binomialDistribution } from "simple-statistics";
+import { Camera, OrthographicCamera } from "three";
 import("simple-statistics");
+import * as THREE from "three";
 
 // get random in [0, max) (exclusive)
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
+
+function TexturedQuad(texture) {
+  // 2x2 texture
+  const width = 2;
+  const height = 2;
+
+  return (
+    <Plane scale={[2, 2, 1]}>
+      <meshBasicMaterial attach="material" map={texture.texture} />
+    </Plane>
+  );
+}
+
+// Creates color array from frequency data
+const makeHeatmapColors = (data) => {
+  const cm = BlackbodyColormap;
+
+  // TODO: magic constant 255
+  const inter = Array.from(data)
+    .map((value) => {
+      return cm.getColor(value, 0, 10);
+    })
+    .flat()
+    .map((value) => value * 255);
+  // Color array (RGBA)
+  const colorArray = new Uint8Array(inter);
+  return colorArray;
+};
 
 function makeStateArray(latticeSize) {
   // Int size in bytes
@@ -26,14 +56,11 @@ function makeStateArray(latticeSize) {
 
 // TODO: Component does too many things, consider splitting up
 export default function PhysicsCanvas({ data }) {
-  const [pdata, setPdata] = useState([]);
   const [latticeDims, setLatticeDims] = useState([8, 8]);
 
   const latticeSize = latticeDims[0] * latticeDims[1];
 
   const [energyQuanta, setEnergyQuanta] = useState(10);
-  const [useKey, setUseKey] = useState(0);
-  const [latticeState, setLatticeState] = useState(makeStateArray(latticeSize));
 
   // TODO: make this reference a usestate.
   const state = useRef(makeStateArray(latticeSize));
@@ -47,6 +74,20 @@ export default function PhysicsCanvas({ data }) {
   const accumState = useRef(
     Array.from({ length: latticeSize }, () =>
       Array.from({ length: energyQuanta + 1 }, () => 0),
+    ),
+  );
+
+  const [pdata, setPdata] = useState(
+    Array.from(accumState.current[params.current.systemSize - 1]),
+  );
+
+  // Create the texture from the array
+  const texture = useRef(
+    new THREE.DataTexture(
+      makeHeatmapColors(state.current),
+      latticeDims[0],
+      latticeDims[1],
+      THREE.RGBAFormat,
     ),
   );
 
@@ -118,7 +159,6 @@ export default function PhysicsCanvas({ data }) {
     var obj = {
       restartSim: function () {
         //setUseKey(useKey + 1);
-        console.log("clicked");
         state.current = makeStateArray(latticeSize);
         // TODO: extract into function
         accumState.current = Array.from({ length: latticeSize }, () =>
@@ -143,11 +183,13 @@ export default function PhysicsCanvas({ data }) {
     return () => {
       gui.destroy();
     };
-  }, [latticeSize, useKey]);
+  }, [latticeSize, energyQuanta]);
 
   useEffect(() => {
     const simulate = () => {
       distributeQuanta(energyQuanta, state.current);
+
+      const colorArray = makeHeatmapColors(state.current);
 
       // Creating final array
       let sum = 0;
@@ -162,24 +204,15 @@ export default function PhysicsCanvas({ data }) {
         accumState.current[index][value] += 1;
       });
 
-      /*
-      let sum = a.slice(0, systemSize).reduce((acc, curr) => {
-        return acc + curr;
-      });
-      */
-
-      //a.forEach((value) => (bins[value - 1] += 1));
-
-      // New entry to our histogram
-
-      //accumState.current[partialSums[systemSize]] += 1;
-
       maxind.current = 0;
       for (let i = 0; i < energyQuanta + 1; i++) {
         if (accumState.current[i] != 0) {
           maxind.current = i;
         }
       }
+
+      texture.current.image.data.set(colorArray);
+      texture.current.needsUpdate = true; // Tell Three.js to update the texture
 
       setPdata(Array.from(accumState.current[params.current.systemSize - 1]));
 
@@ -191,48 +224,81 @@ export default function PhysicsCanvas({ data }) {
 
     return () => {
       //cancelAnimationFrame(updaterID);
-      console.log("aaAA");
       clearTimeout(updaterID);
     };
-  }, [latticeSize, energyQuanta, useKey]);
+  }, [latticeSize, energyQuanta]);
 
   return (
-    <div>
-      <Canvas>
-        <color attach="background" args={["magenta"]} />
-        <gridHelper
-          args={[10, 10, `white`, `gray`]}
-          rotation={[Math.PI / 2, 0, 0]}
-        />
-        <Plane scale={[2, 2, 1]}>
-          <meshBasicMaterial color={"black"} />
-        </Plane>
-        <Plane>
-          <meshBasicMaterial color={cm.getColor(50, 0, 100)} />
-        </Plane>
-        <Plane args={[0.5, 200, 1]} scale={[0.5, 2, 0]}>
-          <meshBasicMaterial color={"white"} />
-        </Plane>
-      </Canvas>
-      <Plot
-        data={[
-          {
-            y: pdata,
-            type: "bar",
-          },
-          {
-            y: pdata,
-            type: "lines",
-          },
-        ]}
-        layout={{
-          xaxis: {
-            title: maxind.current,
-            //range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
-          },
-        }}
-        config={{ scrollZoom: false, editable: false, displayModeBar: false }}
-      />{" "}
-    </div>
+    // TODO: Set bg to a translucent color?
+    <>
+      <div className="m-auto basis-1/4 ">
+        <Canvas
+          className="aspect-square  border-stone-600 border-2"
+          orthographic
+          camera={{
+            left: -1,
+            right: 1,
+            top: 1,
+            bottom: -1,
+            position: [0, 0, 100],
+          }}
+        >
+          <color attach="background" args={["blue"]} />
+          <gridHelper
+            args={[10, 10, `white`, `gray`]}
+            rotation={[Math.PI / 2, 0, 0]}
+          />
+          <Plane scale={[2, 2, 1]}>
+            <meshBasicMaterial color={cm.getColor(50, 0, 100)} />
+          </Plane>
+          <TexturedQuad texture={texture.current}></TexturedQuad>
+        </Canvas>
+      </div>
+      <div className="m-0 sm-basis-1/5 basis-3/5  aspect-[4/3]">
+        <Plot
+          //className="aspect-w-4 aspect-h-3 w-2/3"
+          className="aspect-square w-2/3"
+          data={[
+            {
+              y: pdata,
+              type: "bar",
+              marker: {
+                color: "#FEF08A",
+              },
+            },
+            {
+              y: pdata,
+              type: "lines",
+            },
+          ]}
+          useResizeHandler={true}
+          layout={{
+            paper_bgcolor: "rgba(0,0,0,0)",
+            plot_bgcolor: "rgba(0,0,0,0)",
+            xaxis: {
+              title: maxind.current,
+              gridcolor: "#444444", // Dark gray grid lines
+              zerolinecolor: "#888888", // Dark gray zero line
+              color: "#ffffff", // White axis labels and tick marks
+              //range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
+            },
+            font: {
+              color: "#ffffff", // Set the text color to white
+            },
+            yaxis: {
+              gridcolor: "#444444",
+              zerolinecolor: "#888888",
+              color: "#ffffff",
+            },
+          }}
+          config={{
+            scrollZoom: false,
+            editable: false,
+            displayModeBar: false,
+          }}
+          style={{ width: "100%", height: "100%" }}
+        />{" "}
+      </div>
+    </>
   );
 }
