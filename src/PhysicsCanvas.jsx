@@ -17,14 +17,18 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
 
-function TexturedQuad(texture) {
+function TexturedQuad(texture, transparent_p) {
   // 2x2 texture
   const width = 2;
   const height = 2;
 
   return (
     <Plane scale={[2, 2, 1]}>
-      <meshBasicMaterial attach="material" map={texture.texture} />
+      <meshBasicMaterial
+        attach="material"
+        transparent={transparent_p}
+        map={texture.texture}
+      />
     </Plane>
   );
 }
@@ -42,6 +46,24 @@ const makeHeatmapColors = (data) => {
     .map((value) => value * 255);
   // Color array (RGBA)
   const colorArray = new Uint8Array(inter);
+  return colorArray;
+};
+
+// The color overlay for our pixel selection
+const makeOverlay = (latticeSize, systemSize) => {
+  const inter = [...Array(latticeSize)]
+    .map((_, i) => {
+      console.log(i);
+      console.log("System size: ", systemSize);
+      const ret = i - 1 >= systemSize - 1 ? [0, 0, 0, 0] : [0, 0.5, 1, 0.3];
+      console.log(ret);
+      return ret;
+    })
+    .flat()
+    .map((value) => value * 255);
+  // Color array (RGBA)
+  const colorArray = new Uint8Array(inter);
+  console.log("CLA: ", colorArray);
   return colorArray;
 };
 
@@ -82,7 +104,16 @@ export default function PhysicsCanvas({ data }) {
   );
 
   // Create the texture from the array
-  const texture = useRef(
+  const energyTexture = useRef(
+    new THREE.DataTexture(
+      makeHeatmapColors(state.current),
+      latticeDims[0],
+      latticeDims[1],
+      THREE.RGBAFormat,
+    ),
+  );
+
+  const overlayTexture = useRef(
     new THREE.DataTexture(
       makeHeatmapColors(state.current),
       latticeDims[0],
@@ -152,6 +183,9 @@ export default function PhysicsCanvas({ data }) {
   }
 
   distributeQuanta(energyQuanta, state.current);
+  const overlayArray = makeOverlay(latticeSize, params.current.systemSize);
+  overlayTexture.current.image.data.set(overlayArray);
+  overlayTexture.current.needsUpdate = true; // Tell Three.js to update the texture
 
   useEffect(() => {
     const gui = new dat.GUI();
@@ -211,8 +245,8 @@ export default function PhysicsCanvas({ data }) {
         }
       }
 
-      texture.current.image.data.set(colorArray);
-      texture.current.needsUpdate = true; // Tell Three.js to update the texture
+      energyTexture.current.image.data.set(colorArray);
+      energyTexture.current.needsUpdate = true; // Tell Three.js to update the texture
 
       setPdata(Array.from(accumState.current[params.current.systemSize - 1]));
 
@@ -248,13 +282,18 @@ export default function PhysicsCanvas({ data }) {
             args={[10, 10, `white`, `gray`]}
             rotation={[Math.PI / 2, 0, 0]}
           />
-          <Plane scale={[2, 2, 1]}>
-            <meshBasicMaterial color={cm.getColor(50, 0, 100)} />
-          </Plane>
-          <TexturedQuad texture={texture.current}></TexturedQuad>
+          <TexturedQuad
+            texture={energyTexture.current}
+            transparent_p={false}
+          ></TexturedQuad>
+          <TexturedQuad
+            texture={overlayTexture.current}
+            transparent_p={false}
+            position={[0, 0, 1]}
+          ></TexturedQuad>
         </Canvas>
       </div>
-      <div className="m-0 sm-basis-1/5 basis-3/5  aspect-[4/3]">
+      <div className="m-0 basis-full sm:basis-3/5  aspect-[4/3]">
         <Plot
           //className="aspect-w-4 aspect-h-3 w-2/3"
           className="aspect-square w-2/3"
@@ -273,10 +312,12 @@ export default function PhysicsCanvas({ data }) {
           ]}
           useResizeHandler={true}
           layout={{
+            margin: { l: 40, b: 40, t: 40, r: 40 },
             paper_bgcolor: "rgba(0,0,0,0)",
             plot_bgcolor: "rgba(0,0,0,0)",
             xaxis: {
-              title: maxind.current,
+              nticks: 5,
+              title: { text: maxind.current, standoff: 10 },
               gridcolor: "#444444", // Dark gray grid lines
               zerolinecolor: "#888888", // Dark gray zero line
               color: "#ffffff", // White axis labels and tick marks
@@ -286,9 +327,17 @@ export default function PhysicsCanvas({ data }) {
               color: "#ffffff", // Set the text color to white
             },
             yaxis: {
+              title: { text: maxind.current, standoff: 10 },
               gridcolor: "#444444",
               zerolinecolor: "#888888",
               color: "#ffffff",
+            },
+            legend: {
+              x: 1,
+              y: 1,
+              xanchor: "right",
+              yanchor: "top",
+              bgcolor: "rgba(255,255,255,0.3)", // Semi-transparent background
             },
           }}
           config={{

@@ -58,6 +58,8 @@ Its domain of validity.
 
 Of course, it is not the be-all-end-all of thermal distributions. You will come to learn of the conditions where the Boltzmann distribution breaks down, and of models that more accurately describe these cases, such as the **Fermi-Dirac** and **Bose-Einstein** distributions for dense, low temperature gases.
 
+Note that when the density of the quanta becomes high, the distribution no longer converges to Boltzmann. In our case, a more apt description would be given by Bose-Einstein.
+
 ## Try the limits
 At this limit, our system behaves in accordance to a **canonical ensemble**.
 
@@ -89,10 +91,10 @@ function App() {
   return (
     //<div className="w-screen h-screen fixed top-0 left-0">
     <div className="w-full m-auto">
-      <div className="flex flex-wrap w-4/5 justify-center p-0 m-auto align-middle">
+      <div className="flex flex-wrap sm:w-4/5 w-full m-0 justify-center p-0 sm:m-auto align-middle">
         <PhysicsCanvas />
       </div>
-      <div className="m-auto justify-center w-3/5 py-5">
+      <div className="m-auto justify-center sm:w-3/5 w-5/6 py-5">
         <Markdown className="prose prose-xl font-serif prose-invert m-auto">
           {bbbbb}
         </Markdown>
