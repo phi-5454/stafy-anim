@@ -1,0 +1,12 @@
+- N-level harmonic quantum oscillator
+- Maxwell-Boltzmann for velocity?
+- Lasers, inverted populations
+- Information theory (couple to inference)?
+- Star fusion?
+- Cosmology?
+- Epidemology?
+- Microbiology?
+- Sociology?
+- Traffic?
+- Neural nets?
+- Phase transitions (physical vs. phase space)? Magnetism?
