@@ -53,17 +53,13 @@ const makeHeatmapColors = (data) => {
 const makeOverlay = (latticeSize, systemSize) => {
   const inter = [...Array(latticeSize)]
     .map((_, i) => {
-      console.log(i);
-      console.log("System size: ", systemSize);
       const ret = i - 1 >= systemSize - 1 ? [0, 0, 0, 0] : [0, 0.5, 1, 0.3];
-      console.log(ret);
       return ret;
     })
     .flat()
     .map((value) => value * 255);
   // Color array (RGBA)
   const colorArray = new Uint8Array(inter);
-  console.log("CLA: ", colorArray);
   return colorArray;
 };
 
@@ -78,11 +74,11 @@ function makeStateArray(latticeSize) {
 
 // TODO: Component does too many things, consider splitting up
 export default function PhysicsCanvas({ data }) {
-  const [latticeDims, setLatticeDims] = useState([8, 8]);
+  const [latticeDims, setLatticeDims] = useState([16, 16]);
 
   const latticeSize = latticeDims[0] * latticeDims[1];
 
-  const [energyQuanta, setEnergyQuanta] = useState(10);
+  const [energyQuanta, setEnergyQuanta] = useState(1000);
 
   // TODO: make this reference a usestate.
   const state = useRef(makeStateArray(latticeSize));
@@ -143,6 +139,7 @@ export default function PhysicsCanvas({ data }) {
       target[i] = 0;
     }
 
+    /*
     // Fill the grid
     for (let i = 0; i < x - 1 && remainingQuanta != 0; i++) {
       // Calculate the probability for the current bin
@@ -170,16 +167,14 @@ export default function PhysicsCanvas({ data }) {
 
     // The last container gets all remaining quanta
     target[x - 1] = remainingQuanta;
+    */
 
-    /*
-    // A dumb (inelegant) solution: randomly pick for each quantum
+    // A dumb solution: randomly pick for each quantum
     for (let i = 0; i < remainingQuanta; i++) {
       let ind = getRandomInt(latticeSize);
       target[ind] += 1;
       //const element = remainingQuanta[i];
     }
-    console.log(target);
-    */
   }
 
   distributeQuanta(energyQuanta, state.current);
@@ -240,7 +235,7 @@ export default function PhysicsCanvas({ data }) {
 
       maxind.current = 0;
       for (let i = 0; i < energyQuanta + 1; i++) {
-        if (accumState.current[i] != 0) {
+        if (accumState.current[params.current.systemSize - 1][i] != 0) {
           maxind.current = i;
         }
       }
@@ -321,7 +316,7 @@ export default function PhysicsCanvas({ data }) {
               gridcolor: "#444444", // Dark gray grid lines
               zerolinecolor: "#888888", // Dark gray zero line
               color: "#ffffff", // White axis labels and tick marks
-              //range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
+              range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
             },
             font: {
               color: "#ffffff", // Set the text color to white
