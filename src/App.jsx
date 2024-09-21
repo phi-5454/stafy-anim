@@ -18,8 +18,6 @@ import PhysicsCanvas from "./PhysicsCanvas";
 
 import Markdown from "react-markdown";
 
-const bbbbb = `
-`;
 
 const aba = [1, 2, 3, 4, 5];
 let ba = 0;
@@ -32,15 +30,30 @@ function getRandomInt(min, max) {
 }
 
 function App() {
+    const [md_text, setMDtext] = useState('');
+
+    useEffect(() => {
+            // Fetch the .md file from the public/assets folder
+            fetch('./src/assets/contents.md')
+                .then((response) =>{
+                    console.log(response);
+                    return response.text()})
+                .then((text) => {
+                    setMDtext(text); // Set the fetched markdown content
+                })
+                .catch((error) => console.error(error));
+        }, []
+    )
+
   return (
     //<div className="w-screen h-screen fixed top-0 left-0">
     <div className="w-full m-auto">
-      <div className="flex flex-wrap sm:w-4/5 w-full m-0 justify-center p-0 sm:m-auto align-middle">
+      <div className="flex flex-wrap sm:w-4/5 w-full m-0 justify-center p-0 sm:m-auto align-middle pb-5">
         <PhysicsCanvas />
       </div>
       <div className="m-auto justify-center sm:w-3/5 w-5/6 py-5">
         <Markdown className="prose prose-xl font-serif prose-invert m-auto">
-          {bbbbb}
+          {md_text}
         </Markdown>
       </div>
     </div>

@@ -265,13 +265,16 @@ export default function PhysicsCanvas({ data }) {
       //updaterID = requestAnimationFrame(simulate);
       updaterID = setTimeout(simulate, params.current.deltatime);
     };
+
+
     // Keep track of update time delta
     let then = Date.now();
     let frameInterval = 1000/24.0;
     let threeFrameID = requestAnimationFrame(interactiveUpdate);
-
-    let updaterID = setTimeout(simulate, params.current.deltatime);
     //updaterID = setTimeout(simulate, 0);
+
+    let updaterID;
+    simulate();
 
     return () => {
       cancelAnimationFrame(threeFrameID);
@@ -343,7 +346,7 @@ export default function PhysicsCanvas({ data }) {
             plot_bgcolor: "rgba(0,0,0,0)",
             xaxis: {
               nticks: 5,
-              title: { text: maxind.current, standoff: 10 },
+              title: { text: "Number of quanta in the system", standoff: 10 },
               gridcolor: "#444444", // Dark gray grid lines
               zerolinecolor: "#888888", // Dark gray zero line
               color: "#ffffff", // White axis labels and tick marks
@@ -352,7 +355,7 @@ export default function PhysicsCanvas({ data }) {
               color: "#ffffff", // Set the text color to white
             },
             yaxis: {
-              title: { text: maxind.current, standoff: 10 },
+              title: { text: "Number of occurrences", standoff: 10 },
               gridcolor: "#444444",
               zerolinecolor: "#888888",
               color: "#ffffff",
