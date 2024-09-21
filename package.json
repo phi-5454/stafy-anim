@@ -14,7 +14,7 @@
     "@mui/base": "^5.0.0-beta.40",
     "@react-three/drei": "^9.107.0",
     "@react-three/fiber": "^8.16.8",
-    "@types/three": "^0.165.0",
+    "@types/three": "^0.168.0",
     "colormap": "^2.3.2",
     "dat.gui": "^0.7.9",
     "ls": "^0.2.1",
@@ -25,7 +25,7 @@
     "react-markdown": "^9.0.1",
     "react-plotly.js": "^2.6.0",
     "simple-statistics": "^7.8.3",
-    "three": "^0.165.0"
+    "three": "^0.168.0"
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.14",

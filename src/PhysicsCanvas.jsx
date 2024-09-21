@@ -1,16 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
-import Plotly from "plotly.js-dist";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {Canvas} from "@react-three/fiber";
 import * as dat from "dat.gui";
 
 import Plot from "react-plotly.js";
-import RealtimePlot from "./RealtimePlot";
-import { Plane } from "@react-three/drei";
+import {Plane} from "@react-three/drei";
 import BlackbodyColormap from "./ColorGradient";
-import { binomialDistribution } from "simple-statistics";
-import { Camera, OrthographicCamera } from "three";
-import("simple-statistics");
 import * as THREE from "three";
+import {bar} from "plotly.js/src/traces/parcoords/constants.js";
+
+import("simple-statistics");
 
 // get random in [0, max) (exclusive)
 function getRandomInt(max) {
@@ -34,26 +32,25 @@ function TexturedQuad(texture, transparent_p) {
 }
 
 // Creates color array from frequency data
-const makeHeatmapColors = (data) => {
+const makeHeatmapColors = (data, quanta) => {
   const cm = BlackbodyColormap;
 
   // TODO: magic constant 255
   const inter = Array.from(data)
     .map((value) => {
-      return cm.getColor(value, 0, 10);
+      return cm.getLogColor(value, 0, Math.max(quanta, 1));
     })
     .flat()
     .map((value) => value * 255);
   // Color array (RGBA)
-  const colorArray = new Uint8Array(inter);
-  return colorArray;
+  return new Uint8Array(inter);
 };
 
 // The color overlay for our pixel selection
 const makeOverlay = (latticeSize, systemSize) => {
   const inter = [...Array(latticeSize)]
     .map((_, i) => {
-      const ret = i - 1 >= systemSize - 1 ? [0, 0, 0, 0] : [0, 0.5, 1, 0.3];
+      const ret = i - 1 >= systemSize - 1 ? [0, 0, 0, 0] : [0, 0.5, 1, 0.5];
       return ret;
     })
     .flat()
@@ -74,52 +71,58 @@ function makeStateArray(latticeSize) {
 
 // TODO: Component does too many things, consider splitting up
 export default function PhysicsCanvas({ data }) {
-  const [latticeDims, setLatticeDims] = useState([16, 16]);
+  const [renderID, setRenderID] = useState(0);
+  const [latticeDims, setLatticeDims] = useState([32,32]);
+  const [energyQuanta, setEnergyQuanta] = useState(5000);
 
   const latticeSize = latticeDims[0] * latticeDims[1];
 
-  const [energyQuanta, setEnergyQuanta] = useState(1000);
+  const systemState= useMemo(() => {return makeStateArray(latticeSize)}, [latticeSize]);
 
-  // TODO: make this reference a usestate.
-  const state = useRef(makeStateArray(latticeSize));
+  // TODO: system flickers...
 
-  // TODO: make the accum a state, not a ref
-
-  // deltatime really deltatime, since settimeout will always have some overhead
-  const params = useRef({ deltatime: 100, systemSize: latticeSize / 2 });
+  // deltatime not really deltatime, since settimeout will always have some overhead
+  const params = useRef(
+      { deltatime: 100, systemSize: Math.ceil(latticeSize / 2), latticesize: latticeDims[0], energyQuanta: energyQuanta }
+  );
 
   // [system size][number of quanta]
-  const accumState = useRef(
-    Array.from({ length: latticeSize }, () =>
-      Array.from({ length: energyQuanta + 1 }, () => 0),
-    ),
+  // Info on each simulation cycle, used for visualization
+  const accumState = useMemo( () =>{
+    if(renderID !== null && latticeDims !== null){
+     return Array.from({ length: latticeSize }, () =>
+      Array.from({ length: energyQuanta + 1 }, () => {
+        return 0;}),
+    ) 
+    }
+    }, [renderID, latticeDims, latticeSize, energyQuanta]
   );
 
+  // Array to display on histogram
   const [pdata, setPdata] = useState(
-    Array.from(accumState.current[params.current.systemSize - 1]),
+    Array.from(accumState[0]),
   );
 
+  // Textures for the system visualization
   // Create the texture from the array
-  const energyTexture = useRef(
-    new THREE.DataTexture(
-      makeHeatmapColors(state.current),
-      latticeDims[0],
-      latticeDims[1],
-      THREE.RGBAFormat,
-    ),
-  );
+  const energyTexture =
+      useMemo(() =>
+          new THREE.DataTexture(
+              makeHeatmapColors(makeStateArray(latticeSize), 1),
+              latticeDims[0],
+              latticeDims[1],
+              THREE.RGBAFormat,
+          )
+          , [latticeDims, latticeSize])
 
-  const overlayTexture = useRef(
-    new THREE.DataTexture(
-      makeHeatmapColors(state.current),
-      latticeDims[0],
-      latticeDims[1],
-      THREE.RGBAFormat,
-    ),
-  );
+  const overlayTexture= useMemo(() => new THREE.DataTexture(
+        makeOverlay(latticeSize, makeStateArray(latticeSize)),
+        latticeDims[0],
+        latticeDims[1],
+        THREE.RGBAFormat,
+    ), [latticeDims, latticeSize])
 
-  const cm = BlackbodyColormap;
-
+  let minind = useRef(0);
   let maxind = useRef(0);
 
   /**
@@ -130,57 +133,41 @@ export default function PhysicsCanvas({ data }) {
    *
    * @return
    */
-  function distributeQuanta(n, target) {
-    let remainingQuanta = n;
-    let x = target.length;
+  const distributeQuanta = useCallback((n, target) => {
+    //let remainingQuanta = n;
+    //let x = target.length;
 
     // zero the array
     for (let i = 0; i < target.length; i++) {
       target[i] = 0;
     }
 
-    /*
-    // Fill the grid
-    for (let i = 0; i < x - 1 && remainingQuanta != 0; i++) {
-      // Calculate the probability for the current bin
-      const p = 1 / (x - i);
-      // Determine the number of quanta in this bin using a binomial distribution
-      var dist = binomialDistribution(remainingQuanta, p);
-      const randVal = Math.random();
+    let stars = energyQuanta;
+    let bars = latticeSize - 1;
+    const sbsize = stars + bars;
 
-      let quantaInCell = 0;
-      for (let j = 0, c = 0.0; j <= remainingQuanta; j++) {
-        c += dist[j];
-        if (randVal < c) {
-          quantaInCell = j;
-          break;
-        }
+    // Fill our lattice according to "stars and bars"
+    let index = 0;
+
+    for (let i = 0; i < sbsize; i++){
+      // Random variable to decide between star and bar.
+      let r = Math.random() * (stars + bars);
+      // Weighted sampling:
+      // Choose star
+      if(r <= stars) {
+        target[index] += 1;
+        stars -= 1;
       }
-
-      // The rest go into the last bin
-      Math.round(remainingQuanta * p);
-
-      target[i] = quantaInCell;
-      // Subtract the balls placed in this container from the remaining balls
-      remainingQuanta -= quantaInCell;
+      // Choose bar
+      else {
+        index +=1;
+        bars -= 1;
+      }
     }
 
-    // The last container gets all remaining quanta
-    target[x - 1] = remainingQuanta;
-    */
+    // Stars and bars to partition the quanta (even distribution between microstates)
+  }, [energyQuanta, latticeSize]);
 
-    // A dumb solution: randomly pick for each quantum
-    for (let i = 0; i < remainingQuanta; i++) {
-      let ind = getRandomInt(latticeSize);
-      target[ind] += 1;
-      //const element = remainingQuanta[i];
-    }
-  }
-
-  distributeQuanta(energyQuanta, state.current);
-  const overlayArray = makeOverlay(latticeSize, params.current.systemSize);
-  overlayTexture.current.image.data.set(overlayArray);
-  overlayTexture.current.needsUpdate = true; // Tell Three.js to update the texture
 
   useEffect(() => {
     const gui = new dat.GUI();
@@ -188,19 +175,23 @@ export default function PhysicsCanvas({ data }) {
     var obj = {
       restartSim: function () {
         //setUseKey(useKey + 1);
-        state.current = makeStateArray(latticeSize);
-        // TODO: extract into function
-        accumState.current = Array.from({ length: latticeSize }, () =>
-          Array.from({ length: energyQuanta + 1 }, () => 0),
-        );
+        //state.current = makeStateArray(latticeSize);
+        setRenderID(renderID + 1);
       },
     };
 
     gui.add(obj, "restartSim", "Restart simulation");
 
-    //gui.add(params.current, "graph update frequency", 10, 1000);
+    gui.add(params.current, "latticesize", 1, 64).step(1).onFinishChange((newValue) => {
+      params.current.systemSize = Math.min(params.current.systemSize, newValue * newValue);
+      setLatticeDims([newValue, newValue])
+    });
+
     gui.add(params.current, "deltatime", 10, 1000);
     gui.add(params.current, "systemSize", 1, latticeSize).step(1);
+    gui.add(params.current, "energyQuanta", 0, 10000).step(1).onFinishChange((newValue) => {
+      setEnergyQuanta(newValue)
+    });
     /*
       .add(valueRef.current, "value", 0, 100)
       .name("Value")
@@ -212,50 +203,86 @@ export default function PhysicsCanvas({ data }) {
     return () => {
       gui.destroy();
     };
-  }, [latticeSize, energyQuanta]);
+  }, [latticeSize, latticeDims, energyQuanta, accumState, renderID]);
+
 
   useEffect(() => {
-    const simulate = () => {
-      distributeQuanta(energyQuanta, state.current);
 
-      const colorArray = makeHeatmapColors(state.current);
+    const interactiveUpdate = () => {
+      // Request the next frame
+      threeFrameID = requestAnimationFrame(interactiveUpdate);
+
+      const now = Date.now();
+      const delta = now - then;
+
+      // Frame throttling, taken from
+      // https://stackoverflow.com/questions/19764018/controlling-fps-with-requestanimationframe (21/09/2024)
+      if(delta > frameInterval){
+        // Adjust for "excess waiting"
+        then = now - (delta % frameInterval);
+        const pdata_pr = accumState[Math.max(params.current.systemSize - 1, 0)];
+
+        // Compute bounds to render
+        for (let i = 0; i < energyQuanta + 1; i++) {
+          if (pdata_pr[i] !== 0) {
+            maxind.current = i;
+          }
+        }
+        for (let i = energyQuanta; i >= 0; i--) {
+          if (pdata_pr[i] !== 0) {
+            minind.current = i;
+          }
+        }
+
+        const colorArray = makeHeatmapColors(systemState, energyQuanta);
+        energyTexture.image.data.set(colorArray);
+        energyTexture.needsUpdate = true; // Tell Three.js to update the texture
+
+
+        setPdata(Array.from(pdata_pr));
+      }
+    }
+
+    const simulate = () => {
+      distributeQuanta(energyQuanta, systemState);
+
 
       // Creating final array
       let sum = 0;
       // Using map to perform transformations
-      let partialSums = state.current.map((e) => {
+      let partialSums = systemState.map((e) => {
         sum = sum + e;
         return sum;
       });
 
       // Keep track of system's configurations
       partialSums.forEach((value, index) => {
-        accumState.current[index][value] += 1;
+        accumState[index][value] += 1;
       });
 
-      maxind.current = 0;
-      for (let i = 0; i < energyQuanta + 1; i++) {
-        if (accumState.current[params.current.systemSize - 1][i] != 0) {
-          maxind.current = i;
-        }
-      }
 
-      energyTexture.current.image.data.set(colorArray);
-      energyTexture.current.needsUpdate = true; // Tell Three.js to update the texture
-
-      setPdata(Array.from(accumState.current[params.current.systemSize - 1]));
 
       //updaterID = requestAnimationFrame(simulate);
       updaterID = setTimeout(simulate, params.current.deltatime);
     };
+    // Keep track of update time delta
+    let then = Date.now();
+    let frameInterval = 1000/24.0;
+    let threeFrameID = requestAnimationFrame(interactiveUpdate);
+
     let updaterID = setTimeout(simulate, params.current.deltatime);
     //updaterID = setTimeout(simulate, 0);
 
     return () => {
-      //cancelAnimationFrame(updaterID);
+      cancelAnimationFrame(threeFrameID);
       clearTimeout(updaterID);
     };
-  }, [latticeSize, energyQuanta]);
+  }, [latticeSize, energyQuanta, accumState, distributeQuanta, systemState, energyTexture]);
+
+
+  overlayTexture.image.data.set(makeOverlay(latticeSize, params.current.systemSize));
+  overlayTexture.needsUpdate = true;
+
 
   return (
     // TODO: Set bg to a translucent color?
@@ -272,17 +299,17 @@ export default function PhysicsCanvas({ data }) {
             position: [0, 0, 100],
           }}
         >
-          <color attach="background" args={["blue"]} />
+          <color attach="background" args={["black"]} />
           <gridHelper
             args={[10, 10, `white`, `gray`]}
             rotation={[Math.PI / 2, 0, 0]}
           />
           <TexturedQuad
-            texture={energyTexture.current}
+            texture={energyTexture}
             transparent_p={false}
           ></TexturedQuad>
           <TexturedQuad
-            texture={overlayTexture.current}
+            texture={overlayTexture}
             transparent_p={false}
             position={[0, 0, 1]}
           ></TexturedQuad>
@@ -294,16 +321,20 @@ export default function PhysicsCanvas({ data }) {
           className="aspect-square w-2/3"
           data={[
             {
-              y: pdata,
+              // Take the subset with data on it, for performance reasons
+              y: pdata.slice(minind.current, maxind.current + 1),
+              x: Array.from({length:(maxind.current + 1 -minind.current)}, (_, i) => i + minind.current),
               type: "bar",
               marker: {
                 color: "#FEF08A",
               },
+              name: "Number of occurrences"
             },
-            {
+            /*{
               y: pdata,
               type: "lines",
-            },
+              name: "Ideal Boltzmann"
+            },*/
           ]}
           useResizeHandler={true}
           layout={{
@@ -316,7 +347,6 @@ export default function PhysicsCanvas({ data }) {
               gridcolor: "#444444", // Dark gray grid lines
               zerolinecolor: "#888888", // Dark gray zero line
               color: "#ffffff", // White axis labels and tick marks
-              range: [-0.5, maxind.current + 0.5], // Set the x-axis limits here
             },
             font: {
               color: "#ffffff", // Set the text color to white
