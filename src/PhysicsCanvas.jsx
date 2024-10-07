@@ -7,6 +7,7 @@ import {Plane} from "@react-three/drei";
 import BlackbodyColormap from "./ColorGradient";
 import * as THREE from "three";
 import {bar} from "plotly.js/src/traces/parcoords/constants.js";
+import TexturedQuad from "./TexturedQuad.jsx";
 
 import("simple-statistics");
 
@@ -15,21 +16,6 @@ function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
 
-function TexturedQuad(texture, transparent_p) {
-  // 2x2 texture
-  const width = 2;
-  const height = 2;
-
-  return (
-    <Plane scale={[2, 2, 1]}>
-      <meshBasicMaterial
-        attach="material"
-        transparent={transparent_p}
-        map={texture.texture}
-      />
-    </Plane>
-  );
-}
 
 // Creates color array from frequency data
 const makeHeatmapColors = (data, quanta) => {
@@ -83,7 +69,7 @@ export default function PhysicsCanvas({ data }) {
 
   // deltatime not really deltatime, since settimeout will always have some overhead
   const params = useRef(
-      { deltatime: 100, systemSize: Math.ceil(latticeSize / 2), latticesize: latticeDims[0], energyQuanta: energyQuanta }
+      { deltatime: 100, systemSize: Math.ceil(latticeSize / 2), latticewidth: latticeDims[0], energyQuanta: energyQuanta }
   );
 
   // [system size][number of quanta]
@@ -182,16 +168,16 @@ export default function PhysicsCanvas({ data }) {
 
     gui.add(obj, "restartSim", "Restart simulation");
 
-    gui.add(params.current, "latticesize", 1, 64).step(1).onFinishChange((newValue) => {
-      params.current.systemSize = Math.min(params.current.systemSize, newValue * newValue);
+    gui.add(params.current, "latticewidth", 1, 64).step(1).onFinishChange((newValue) => {
+      params.current.systemSize = Math.floor((newValue*newValue)/2);
       setLatticeDims([newValue, newValue])
-    });
+    }).name("Lattice width");
 
-    gui.add(params.current, "deltatime", 10, 1000);
-    gui.add(params.current, "systemSize", 1, latticeSize).step(1);
+    gui.add(params.current, "deltatime", 10, 1000).name("Time step (ms)");
+    gui.add(params.current, "systemSize", 1, latticeSize).step(1).name("System size");
     gui.add(params.current, "energyQuanta", 0, 10000).step(1).onFinishChange((newValue) => {
       setEnergyQuanta(newValue)
-    });
+    }).name("Energy quanta");
     /*
       .add(valueRef.current, "value", 0, 100)
       .name("Value")
@@ -289,6 +275,7 @@ export default function PhysicsCanvas({ data }) {
 
   return (
     // TODO: Set bg to a translucent color?
+      // TODO: Move this configuration stuff to other component
     <>
       <div className="m-auto basis-1/4 ">
         <Canvas
@@ -352,6 +339,7 @@ export default function PhysicsCanvas({ data }) {
               color: "#ffffff", // White axis labels and tick marks
             },
             font: {
+               family: "Garamond, serif",
               color: "#ffffff", // Set the text color to white
             },
             yaxis: {
