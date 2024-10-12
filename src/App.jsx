@@ -8,6 +8,7 @@ import { useEffect} from "react";
 import PhysicsCanvas from "./PhysicsCanvas";
 
 import Markdown from "react-markdown";
+import {Route, Routes} from "react-router-dom";
 
 
 function App() {
@@ -15,7 +16,6 @@ function App() {
     const [menuVisible, setMenuVisible] = useState(false);
 
     const handleMenuVis = (event) =>{
-        console.log(event.target.checked);
        setMenuVisible(event.target.checked);
     }
 
@@ -39,7 +39,7 @@ function App() {
               <div className="drawer">
                   <input id="my-drawer" checked={menuVisible} onChange={handleMenuVis} type="checkbox" className="drawer-toggle"/>
                   <div className="drawer-content">
-                          <div className={menuVisible?"hidden":"fixed top-0 left-0 m-4"}>
+                          <div className={menuVisible?"hidden":"fixed top-0 left-0 m-4 z-10"}>
                               <label htmlFor="my-drawer"
                                      className="btn border-0 hover:text-white rounded-sm btn-active text-black bg-amber-200 drawer-button">
                                   Menu
@@ -55,13 +55,13 @@ function App() {
                           </Markdown>
                       </div>
                   </div>
-                  <div className="drawer-side">
+                  <div className="drawer-side z-20">
                       <label htmlFor="my-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
                       <div className="bg-gradient-to-r from-black backdrop-blur h-full">
-                          <ul className="menu  text-base-content p-4">
+                          <ul className="menu text-base-content p-4">
                               <label htmlFor="my-drawer"
-                                     className="btn border-0 rounded-sm btn-active text-white drawer-button">Close</label>
-                              <li><a href={"https://github.com/phi-5454/stafy-anim"}>Source code</a></li>
+                                     className="btn border-0 rounded-sm  text-white drawer-button">Close</label>
+                              <li><a className={"rounded-none"} href={"https://github.com/phi-5454/stafy-anim"}>Source code</a></li>
                           </ul>
                       </div>
                   </div>

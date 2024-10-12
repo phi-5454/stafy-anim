@@ -8,6 +8,7 @@ import BlackbodyColormap from "./ColorGradient";
 import * as THREE from "three";
 import {bar} from "plotly.js/src/traces/parcoords/constants.js";
 import TexturedQuad from "./TexturedQuad.jsx";
+import Histogram from "./Histogram.jsx";
 
 import("simple-statistics");
 
@@ -272,7 +273,6 @@ export default function PhysicsCanvas({ data }) {
   overlayTexture.image.data.set(makeOverlay(latticeSize, params.current.systemSize));
   overlayTexture.needsUpdate = true;
 
-
   return (
     // TODO: Set bg to a translucent color?
       // TODO: Move this configuration stuff to other component
@@ -306,63 +306,7 @@ export default function PhysicsCanvas({ data }) {
         </Canvas>
       </div>
       <div className="m-0 basis-full sm:basis-3/5  aspect-[4/3]">
-        <Plot
-          //className="aspect-w-4 aspect-h-3 w-2/3"
-          className="aspect-square w-2/3"
-          data={[
-            {
-              // Take the subset with data on it, for performance reasons
-              y: pdata.slice(minind.current, maxind.current + 1),
-              x: Array.from({length:(maxind.current + 1 -minind.current)}, (_, i) => i + minind.current),
-              type: "bar",
-              marker: {
-                color: "#FEF08A",
-              },
-              name: "Number of occurrences"
-            },
-            /*{
-              y: pdata,
-              type: "lines",
-              name: "Ideal Boltzmann"
-            },*/
-          ]}
-          useResizeHandler={true}
-          layout={{
-            margin: { l: 40, b: 40, t: 40, r: 40 },
-            paper_bgcolor: "rgba(0,0,0,0)",
-            plot_bgcolor: "rgba(0,0,0,0)",
-            xaxis: {
-              nticks: 5,
-              title: { text: "Number of quanta in the system", standoff: 10 },
-              gridcolor: "#444444", // Dark gray grid lines
-              zerolinecolor: "#888888", // Dark gray zero line
-              color: "#ffffff", // White axis labels and tick marks
-            },
-            font: {
-               family: "Garamond, serif",
-              color: "#ffffff", // Set the text color to white
-            },
-            yaxis: {
-              title: { text: "Number of occurrences", standoff: 10 },
-              gridcolor: "#444444",
-              zerolinecolor: "#888888",
-              color: "#ffffff",
-            },
-            legend: {
-              x: 1,
-              y: 1,
-              xanchor: "right",
-              yanchor: "top",
-              bgcolor: "rgba(255,255,255,0.3)", // Semi-transparent background
-            },
-          }}
-          config={{
-            scrollZoom: false,
-            editable: false,
-            displayModeBar: false,
-          }}
-          style={{ width: "100%", height: "100%" }}
-        />{" "}
+        <Histogram idata={pdata} min_ind={minind.current} max_ind={maxind.current}/>
       </div>
     </>
   );
