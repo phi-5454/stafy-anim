@@ -25,7 +25,7 @@ const Histogram = ({idata, min_ind, max_ind}) =>{
         ]}
         useResizeHandler={true}
         layout={{
-            margin: { l: 40, b: 40, t: 40, r: 40 },
+            //margin: { l: 40, b: 40, t: 40, r: 40 },
             paper_bgcolor: "rgba(0,0,0,0)",
             plot_bgcolor: "rgba(0,0,0,0)",
             xaxis: {
@@ -37,10 +37,11 @@ const Histogram = ({idata, min_ind, max_ind}) =>{
             },
             font: {
                 family: "Garamond, serif",
-                size: 12,
+                size: 15,
                 color: "#ffffff", // Set the text color to white
             },
             yaxis: {
+                //tickangle:-45,
                 title: { text: "Number of occurrences", standoff: 10 },
                 gridcolor: "#444444",
                 zerolinecolor: "#888888",

@@ -9,6 +9,7 @@ import * as THREE from "three";
 import {bar} from "plotly.js/src/traces/parcoords/constants.js";
 import TexturedQuad from "./TexturedQuad.jsx";
 import Histogram from "./Histogram.jsx";
+import {stdDev} from "./MathUtilities.jsx"
 
 import("simple-statistics");
 

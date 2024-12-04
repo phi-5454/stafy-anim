@@ -50,7 +50,7 @@ function App() {
                       <PhysicsCanvas/>
                       </div>
                       <div className="m-auto justify-center sm:w-3/5 w-5/6 py-5">
-                          <Markdown className="prose prose-xl font-serif prose-invert m-auto">
+                          <Markdown className="prose font-serif text-justify prose-invert m-auto">
                               {md_text}
                           </Markdown>
                       </div>
