@@ -4,33 +4,32 @@ import "./App.css";
 
 import React from "react";
 
-import { useEffect} from "react";
+import { useEffect } from "react";
 import PhysicsCanvas from "./PhysicsCanvas";
 
-import Markdown from "react-markdown";
-import {Route, Routes} from "react-router-dom";
+import textBody from "./assets/contents.md";
 
+import Markdown from "react-markdown";
+import { Route, Routes } from "react-router-dom";
 
 function App() {
-    const [md_text, setMDtext] = useState('');
-    const [menuVisible, setMenuVisible] = useState(false);
+  const [md_text, setMDtext] = useState("");
+  const [menuVisible, setMenuVisible] = useState(false);
 
-    const handleMenuVis = (event) =>{
-       setMenuVisible(event.target.checked);
-    }
+  const handleMenuVis = (event) => {
+    setMenuVisible(event.target.checked);
+  };
 
-    useEffect(() => {
-            // Fetch the .md file from the public/assets folder
-            fetch('./src/assets/contents.md')
-                .then((response) =>{
-                    return response.text()})
-                .then((text) => {
-                    setMDtext(text); // Set the fetched markdown content
-                })
-                .catch((error) => console.error(error));
-        }, []
-    )
-
+  useEffect(() => {
+    // import the .md file from the assets folder
+    import("./assets/contents.md")
+      .then((res) => {
+        fetch(res.default)
+          .then((response) => response.text())
+          .then((text) => setMDtext(text));
+      })
+      .catch((error) => console.error(error));
+  }, []);
 
   return (
       //<div className="w-screen h-screen fixed top-0 left-0">
@@ -50,7 +49,7 @@ function App() {
                       <PhysicsCanvas/>
                       </div>
                       <div className="m-auto justify-center sm:w-3/5 w-5/6 py-5">
-                          <Markdown className="prose font-serif text-justify prose-invert m-auto">
+                          <Markdown className="prose prose-xl font-serif prose-invert m-auto">
                               {md_text}
                           </Markdown>
                       </div>

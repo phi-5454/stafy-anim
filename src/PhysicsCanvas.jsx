@@ -1,12 +1,16 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Canvas} from "@react-three/fiber";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Canvas } from "@react-three/fiber";
 import * as dat from "dat.gui";
 
-import Plot from "react-plotly.js";
-import {Plane} from "@react-three/drei";
 import BlackbodyColormap from "./ColorGradient";
 import * as THREE from "three";
-import {bar} from "plotly.js/src/traces/parcoords/constants.js";
+import { bar } from "plotly.js/src/traces/parcoords/constants.js";
 import TexturedQuad from "./TexturedQuad.jsx";
 import Histogram from "./Histogram.jsx";
 import {stdDev} from "./MathUtilities.jsx"
@@ -17,7 +21,6 @@ import("simple-statistics");
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
-
 
 // Creates color array from frequency data
 const makeHeatmapColors = (data, quanta) => {
@@ -60,55 +63,63 @@ function makeStateArray(latticeSize) {
 // TODO: Component does too many things, consider splitting up
 export default function PhysicsCanvas({ data }) {
   const [renderID, setRenderID] = useState(0);
-  const [latticeDims, setLatticeDims] = useState([32,32]);
+  const [latticeDims, setLatticeDims] = useState([32, 32]);
   const [energyQuanta, setEnergyQuanta] = useState(5000);
 
   const latticeSize = latticeDims[0] * latticeDims[1];
 
-  const systemState= useMemo(() => {return makeStateArray(latticeSize)}, [latticeSize]);
+  const systemState = useMemo(() => {
+    return makeStateArray(latticeSize);
+  }, [latticeSize]);
 
   // TODO: system flickers...
 
   // deltatime not really deltatime, since settimeout will always have some overhead
-  const params = useRef(
-      { deltatime: 100, systemSize: Math.ceil(latticeSize / 2), latticewidth: latticeDims[0], energyQuanta: energyQuanta }
-  );
+  const params = useRef({
+    deltatime: 100,
+    systemSize: Math.ceil(latticeSize / 2),
+    latticewidth: latticeDims[0],
+    energyQuanta: energyQuanta,
+  });
 
   // [system size][number of quanta]
   // Info on each simulation cycle, used for visualization
-  const accumState = useMemo( () =>{
-    if(renderID !== null && latticeDims !== null){
-     return Array.from({ length: latticeSize }, () =>
-      Array.from({ length: energyQuanta + 1 }, () => {
-        return 0;}),
-    ) 
+  const accumState = useMemo(() => {
+    if (renderID !== null && latticeDims !== null) {
+      return Array.from({ length: latticeSize }, () =>
+        Array.from({ length: energyQuanta + 1 }, () => {
+          return 0;
+        }),
+      );
     }
-    }, [renderID, latticeDims, latticeSize, energyQuanta]
-  );
+  }, [renderID, latticeDims, latticeSize, energyQuanta]);
 
   // Array to display on histogram
-  const [pdata, setPdata] = useState(
-    Array.from(accumState[0]),
-  );
+  const [pdata, setPdata] = useState(Array.from(accumState[0]));
 
   // Textures for the system visualization
   // Create the texture from the array
-  const energyTexture =
-      useMemo(() =>
-          new THREE.DataTexture(
-              makeHeatmapColors(makeStateArray(latticeSize), 1),
-              latticeDims[0],
-              latticeDims[1],
-              THREE.RGBAFormat,
-          )
-          , [latticeDims, latticeSize])
+  const energyTexture = useMemo(
+    () =>
+      new THREE.DataTexture(
+        makeHeatmapColors(makeStateArray(latticeSize), 1),
+        latticeDims[0],
+        latticeDims[1],
+        THREE.RGBAFormat,
+      ),
+    [latticeDims, latticeSize],
+  );
 
-  const overlayTexture= useMemo(() => new THREE.DataTexture(
+  const overlayTexture = useMemo(
+    () =>
+      new THREE.DataTexture(
         makeOverlay(latticeSize, makeStateArray(latticeSize)),
         latticeDims[0],
         latticeDims[1],
         THREE.RGBAFormat,
-    ), [latticeDims, latticeSize])
+      ),
+    [latticeDims, latticeSize],
+  );
 
   let minind = useRef(0);
   let maxind = useRef(0);
@@ -121,41 +132,43 @@ export default function PhysicsCanvas({ data }) {
    *
    * @return
    */
-  const distributeQuanta = useCallback((n, target) => {
-    //let remainingQuanta = n;
-    //let x = target.length;
+  const distributeQuanta = useCallback(
+    (n, target) => {
+      //let remainingQuanta = n;
+      //let x = target.length;
 
-    // zero the array
-    for (let i = 0; i < target.length; i++) {
-      target[i] = 0;
-    }
-
-    let stars = energyQuanta;
-    let bars = latticeSize - 1;
-    const sbsize = stars + bars;
-
-    // Fill our lattice according to "stars and bars"
-    let index = 0;
-
-    for (let i = 0; i < sbsize; i++){
-      // Random variable to decide between star and bar.
-      let r = Math.random() * (stars + bars);
-      // Weighted sampling:
-      // Choose star
-      if(r <= stars) {
-        target[index] += 1;
-        stars -= 1;
+      // zero the array
+      for (let i = 0; i < target.length; i++) {
+        target[i] = 0;
       }
-      // Choose bar
-      else {
-        index +=1;
-        bars -= 1;
+
+      let stars = energyQuanta;
+      let bars = latticeSize - 1;
+      const sbsize = stars + bars;
+
+      // Fill our lattice according to "stars and bars"
+      let index = 0;
+
+      for (let i = 0; i < sbsize; i++) {
+        // Random variable to decide between star and bar.
+        let r = Math.random() * (stars + bars);
+        // Weighted sampling:
+        // Choose star
+        if (r <= stars) {
+          target[index] += 1;
+          stars -= 1;
+        }
+        // Choose bar
+        else {
+          index += 1;
+          bars -= 1;
+        }
       }
-    }
 
-    // Stars and bars to partition the quanta (even distribution between microstates)
-  }, [energyQuanta, latticeSize]);
-
+      // Stars and bars to partition the quanta (even distribution between microstates)
+    },
+    [energyQuanta, latticeSize],
+  );
 
   useEffect(() => {
     const gui = new dat.GUI();
@@ -170,16 +183,27 @@ export default function PhysicsCanvas({ data }) {
 
     gui.add(obj, "restartSim", "Restart simulation");
 
-    gui.add(params.current, "latticewidth", 1, 64).step(1).onFinishChange((newValue) => {
-      params.current.systemSize = Math.floor((newValue*newValue)/2);
-      setLatticeDims([newValue, newValue])
-    }).name("Lattice width");
+    gui
+      .add(params.current, "latticewidth", 1, 64)
+      .step(1)
+      .onFinishChange((newValue) => {
+        params.current.systemSize = Math.floor((newValue * newValue) / 2);
+        setLatticeDims([newValue, newValue]);
+      })
+      .name("Lattice width");
 
     gui.add(params.current, "deltatime", 10, 1000).name("Time step (ms)");
-    gui.add(params.current, "systemSize", 1, latticeSize).step(1).name("System size");
-    gui.add(params.current, "energyQuanta", 0, 10000).step(1).onFinishChange((newValue) => {
-      setEnergyQuanta(newValue)
-    }).name("Energy quanta");
+    gui
+      .add(params.current, "systemSize", 1, latticeSize)
+      .step(1)
+      .name("System size");
+    gui
+      .add(params.current, "energyQuanta", 0, 10000)
+      .step(1)
+      .onFinishChange((newValue) => {
+        setEnergyQuanta(newValue);
+      })
+      .name("Energy quanta");
     /*
       .add(valueRef.current, "value", 0, 100)
       .name("Value")
@@ -193,9 +217,7 @@ export default function PhysicsCanvas({ data }) {
     };
   }, [latticeSize, latticeDims, energyQuanta, accumState, renderID]);
 
-
   useEffect(() => {
-
     const interactiveUpdate = () => {
       // Request the next frame
       threeFrameID = requestAnimationFrame(interactiveUpdate);
@@ -205,7 +227,7 @@ export default function PhysicsCanvas({ data }) {
 
       // Frame throttling, taken from
       // https://stackoverflow.com/questions/19764018/controlling-fps-with-requestanimationframe (21/09/2024)
-      if(delta > frameInterval){
+      if (delta > frameInterval) {
         // Adjust for "excess waiting"
         then = now - (delta % frameInterval);
         const pdata_pr = accumState[Math.max(params.current.systemSize - 1, 0)];
@@ -226,14 +248,12 @@ export default function PhysicsCanvas({ data }) {
         energyTexture.image.data.set(colorArray);
         energyTexture.needsUpdate = true; // Tell Three.js to update the texture
 
-
         setPdata(Array.from(pdata_pr));
       }
-    }
+    };
 
     const simulate = () => {
       distributeQuanta(energyQuanta, systemState);
-
 
       // Creating final array
       let sum = 0;
@@ -248,16 +268,13 @@ export default function PhysicsCanvas({ data }) {
         accumState[index][value] += 1;
       });
 
-
-
       //updaterID = requestAnimationFrame(simulate);
       updaterID = setTimeout(simulate, params.current.deltatime);
     };
 
-
     // Keep track of update time delta
     let then = Date.now();
-    let frameInterval = 1000/24.0;
+    let frameInterval = 1000 / 24.0;
     let threeFrameID = requestAnimationFrame(interactiveUpdate);
     //updaterID = setTimeout(simulate, 0);
 
@@ -268,15 +285,23 @@ export default function PhysicsCanvas({ data }) {
       cancelAnimationFrame(threeFrameID);
       clearTimeout(updaterID);
     };
-  }, [latticeSize, energyQuanta, accumState, distributeQuanta, systemState, energyTexture]);
+  }, [
+    latticeSize,
+    energyQuanta,
+    accumState,
+    distributeQuanta,
+    systemState,
+    energyTexture,
+  ]);
 
-
-  overlayTexture.image.data.set(makeOverlay(latticeSize, params.current.systemSize));
+  overlayTexture.image.data.set(
+    makeOverlay(latticeSize, params.current.systemSize),
+  );
   overlayTexture.needsUpdate = true;
 
   return (
     // TODO: Set bg to a translucent color?
-      // TODO: Move this configuration stuff to other component
+    // TODO: Move this configuration stuff to other component
     <>
       <div className="m-auto basis-1/4 ">
         <Canvas
@@ -307,7 +332,11 @@ export default function PhysicsCanvas({ data }) {
         </Canvas>
       </div>
       <div className="m-0 basis-full sm:basis-3/5  aspect-[4/3]">
-        <Histogram idata={pdata} min_ind={minind.current} max_ind={maxind.current}/>
+        <Histogram
+          idata={pdata}
+          min_ind={minind.current}
+          max_ind={maxind.current}
+        />
       </div>
     </>
   );

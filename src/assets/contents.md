@@ -7,5 +7,5 @@ In this isolated system, a subset of pixels is highlighted in *blue*. Let's call
 
 Try to change the different parameters of the simulation, using the **interactive GUI**, and observe the effects on the distribution. For instance, try to shrink the size of the system all the way down to 1. What do you think will happen to the distribution? How does the total energy in the system affect this? ([Hint](https://en.wikipedia.org/wiki/Canonical_ensemble#Boltzmann_distribution_(separable_system)))
 
-\* This type of simulation, where random samples are repeatedly taken (in this case, samples of the [configuration space](https://en.wikipedia.org/wiki/Configuration_space_(physics)) of the total system), is called a [Monte-Carlo simulation](https://en.wikipedia.org/wiki/Monte_Carlo_method)
+\* This type of simulation, where random samples are repeatedly taken (in this case, samples of the [configuration space](https://en.wikipedia.org/wiki/Configuration_space_(physics)) of the total system), is called a [Monte Carlo simulation](https://en.wikipedia.org/wiki/Monte_Carlo_method)
 
