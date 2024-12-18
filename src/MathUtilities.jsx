@@ -1,35 +1,36 @@
 import colormap from "colormap";
-
-class ColorGradient {
-  constructor(props) {
-    this.colors = colormap(props);
-
-    this.getColor = (value, min, max) => {
-      const index = Math.floor(
-        ((value - min) / (max - min)) * (this.colors.length - 1),
-      );
-      return this.colors[index];
-    };
-
-    this.getLogColor = (value, min, max) => {
-      // Apply logarithmic transformation to the value
-      const logMin = Math.log(min + 1); // Adding 1 to avoid log(0)
-      const logMax = Math.log(max + 1);
-      const logValue = Math.log(value + 1);
-
-      const index = Math.floor(
-        ((logValue - logMin) / (logMax - logMin)) * (this.colors.length - 1),
-      );
-      return this.colors[index];
-    };
-  }
-}
+import {overloadingFn} from "three/src/nodes/utils/FunctionOverloadingNode.js";
 
 export const variance = (arr) => {
-  const mu = arr.reduce((sum, value) => sum + value, 0 )/arr.length;
-  return arr.reduce((sum, value) => sum + (value - mu) ** 2, 0) / arr.lenth
+    const mu = arrSum(arr) / arr.length;
+    return arr.reduce((sum, value) => sum + (value - mu) ** 2, 0) / arr.length
 }
 
-export const stdDev = (arr) =>{
-  return Math.sqrt(variance(arr))
+export const stdDev = (arr) => {
+    return Math.sqrt(variance(arr))
+}
+
+// Standard deviation of the index
+export const varianceInd = (arr) => {
+    // the PDF of the indices
+    const setsum = arrSum(arr)
+    if(setsum === 0) return 0
+    const indPDF = arr.map((v, i) => v / setsum)
+    // average index
+    const mu = arrSum(indPDF.map((v, i) => v * i));
+    const offsetSquare = indPDF.map((x, i) => x * (i - mu) ** 2);
+    return arrSum(offsetSquare);
+}
+// Standard deviation on the index
+export const stdDevInd = (arr) => {
+    return Math.sqrt(varianceInd(arr))
+}
+
+export const arrSum = (arr) => {
+    return arr.reduce((sum, value) => sum + value, 0)
+}
+
+// get random in [0, max) (exclusive)
+export const getRandomInt = (max) => {
+    return Math.floor(Math.random() * max);
 }

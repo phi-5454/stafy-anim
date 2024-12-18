@@ -48,7 +48,7 @@ function App() {
                       className="flex flex-wrap sm:w-4/5 w-full m-0 justify-center p-0 sm:m-auto align-middle pb-5">
                       <PhysicsCanvas/>
                       </div>
-                      <div className="m-auto justify-center sm:w-3/5 w-5/6 py-5">
+                      <div className="m-auto justify-center sm:w-3/5 w-5/6 py-20">
                           <Markdown className="prose prose-xl text-justify font-serif prose-invert m-auto">
                               {md_text}
                           </Markdown>
