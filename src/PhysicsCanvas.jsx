@@ -242,7 +242,6 @@ export default function PhysicsCanvas({data}) {
                         minind.current = i;
                     }
                 }
-                console.log(0.00231.toExponential(3))
 
                 const colorArray = makeHeatmapColors(systemState, energyQuanta);
                 energyTexture.image.data.set(colorArray);
