@@ -4,9 +4,6 @@ import "./App.css";
 
 import React from "react";
 
-import { useEffect } from "react";
-import PhysicsCanvas from "./PhysicsCanvas";
-
 import {BrowserRouter, Link, Route, Router, Routes} from "react-router-dom";
 import EinsteinSolid from "./EinsteinSolid.jsx";
 import NLevelSystem from "./NLevelSystem.jsx";
@@ -41,7 +38,8 @@ function App() {
                       <div
                           className="flex flex-wrap sm:w-4/5 w-full m-0 justify-center p-0 sm:m-auto align-middle pb-5">
                               <Routes>
-                                  <Route path="*" element={<EinsteinSolid/>}/>
+                                  {/*<Route path="*" element={<EinsteinSolid/>}/>*/}
+                                  <Route path="*" element={<NLevelSystem/>}/>
                                   <Route path="/einsteinsolid" element={<EinsteinSolid/>}/>
                                   <Route path="/nlevelsystem" element={<NLevelSystem/>}/>
                               </Routes>

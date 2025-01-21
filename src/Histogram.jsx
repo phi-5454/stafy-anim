@@ -1,7 +1,17 @@
 import Plot from "react-plotly.js";
 import React, {forwardRef} from "react";
 
-const Histogram = ({idata, min_ind, max_ind}) =>{
+const Histogram = ({idata, min_ind, max_ind, flipped=false}) =>{
+
+    const xtitle=flipped?"Number of occurrences":"Number of quanta in the system"
+    const ytitle=flipped?"Number of quanta in the system":"Number of occurrences"
+
+
+    const quantarange = Array.from({length:(max_ind + 1 -min_ind)}, (_, i) => i + min_ind)
+    const data = idata.slice(min_ind, max_ind + 1)
+
+    const xdata=flipped?data:quantarange
+    const ydata=flipped?quantarange:data
 
     return(<Plot
         //className="aspect-w-4 aspect-h-3 w-2/3"
@@ -9,8 +19,9 @@ const Histogram = ({idata, min_ind, max_ind}) =>{
         data={[
             {
                 // Take the subset with data on it, for performance reasons
-                y: idata.slice(min_ind, max_ind + 1),
-                x: Array.from({length:(max_ind + 1 -min_ind)}, (_, i) => i + min_ind),
+                y: ydata,
+                x: xdata,
+                orientation: (flipped?'h':'v'),
                 type: "bar",
                 marker: {
                     color: "#FEF08A",
@@ -30,7 +41,7 @@ const Histogram = ({idata, min_ind, max_ind}) =>{
             plot_bgcolor: "rgba(0,0,0,0)",
             xaxis: {
                 nticks: 5,
-                title: { text: "Number of quanta in the system", standoff: 10 },
+                title: { text: xtitle, standoff: 10 },
                 gridcolor: "#444444", // Dark gray grid lines
                 zerolinecolor: "#888888", // Dark gray zero line
                 color: "#ffffff", // White axis labels and tick marks
@@ -42,7 +53,7 @@ const Histogram = ({idata, min_ind, max_ind}) =>{
             },
             yaxis: {
                 //tickangle:-45,
-                title: { text: "Number of occurrences", standoff: 10 },
+                title: { text: ytitle, standoff: 10 },
                 gridcolor: "#444444",
                 zerolinecolor: "#888888",
                 color: "#ffffff",

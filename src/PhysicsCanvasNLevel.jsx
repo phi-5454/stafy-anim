@@ -8,19 +8,22 @@ import React, {
 import {Canvas} from "@react-three/fiber";
 import * as dat from "dat.gui";
 
-import {BlackbodyColormap} from "./ColorGradient";
+import {BlackbodyColormap, BlueColormap} from "./ColorGradient";
 import * as THREE from "three";
 import {bar} from "plotly.js/src/traces/parcoords/constants.js";
 import TexturedQuad from "./TexturedQuad.jsx";
 import Histogram from "./Histogram.jsx";
 import {stdDev, arrSum, stdDevInd} from "./MathUtilities.jsx"
+import {Vector3, Vector4} from "three";
+
+import {ArcherContainer, ArcherElement} from 'react-archer';
 
 import("simple-statistics");
 
 
 // Creates color array from frequency data
 const makeHeatmapColors = (data, quanta) => {
-    const cm = BlackbodyColormap;
+    const cm = BlueColormap;
 
     // TODO: magic constant 255
     const inter = Array.from(data)
@@ -33,19 +36,14 @@ const makeHeatmapColors = (data, quanta) => {
     return new Uint8Array(inter);
 };
 
-// The color overlay for our pixel selection
-const makeOverlay = (latticeSize, systemSize) => {
-    const inter = [...Array(latticeSize)]
-        .map((_, i) => {
-            const ret = i - 1 >= systemSize - 1 ? [0, 0, 0, 0] : [0, 0.5, 1, 0.5];
-            return ret;
-        })
-        .flat()
-        .map((value) => value * 255);
-    // Color array (RGBA)
-    const colorArray = new Uint8Array(inter);
-    return colorArray;
+// Creates color value for N-level system
+// TODO: Make colormap uniform with rest
+const makeLoneSystemColor = (value, N) => {
+    console.log(value)
+    const cm = BlackbodyColormap;
+    return cm.getColor(value, 0, Math.max(N + 1, Math.max(10, 1)));
 };
+
 
 function makeStateArray(latticeSize) {
     // Int size in bytes
@@ -57,23 +55,28 @@ function makeStateArray(latticeSize) {
 }
 
 // TODO: Component does too many things, consider splitting up
-export default function PhysicsCanvas({data}) {
+export default function PhysicsCanvasNLevel({data}) {
     const [renderID, setRenderID] = useState(0);
     const [latticeDims, setLatticeDims] = useState([32, 32]);
     const [energyQuanta, setEnergyQuanta] = useState(5000);
+    const [N, setN] = useState(10);
 
     const latticeSize = latticeDims[0] * latticeDims[1];
 
-    const systemState = useMemo(() => {
+    const heatBathState = useMemo(() => {
         return makeStateArray(latticeSize);
     }, [latticeSize]);
 
     // TODO: system flickers...
 
+    const nSystemState = useRef(0)
+    const nSystemColor = useRef([0,0,0,0])
+
     // deltatime not really deltatime, since settimeout will always have some overhead
     const params = useRef({
         deltatime: 100,
-        systemSize: Math.ceil(latticeSize / 2),
+        systemSize: 1,
+        N:2,
         latticewidth: latticeDims[0],
         energyQuanta: energyQuanta,
     });
@@ -106,17 +109,6 @@ export default function PhysicsCanvas({data}) {
         [latticeDims, latticeSize],
     );
 
-    const overlayTexture = useMemo(
-        () =>
-            new THREE.DataTexture(
-                makeOverlay(latticeSize, makeStateArray(latticeSize)),
-                latticeDims[0],
-                latticeDims[1],
-                THREE.RGBAFormat,
-            ),
-        [latticeDims, latticeSize],
-    );
-
     let minind = useRef(0);
     let maxind = useRef(0);
 
@@ -129,7 +121,7 @@ export default function PhysicsCanvas({data}) {
      * @return
      */
     const distributeQuanta = useCallback(
-        (n, target) => {
+        (n, target, nSystemTarget) => {
             //let remainingQuanta = n;
             //let x = target.length;
 
@@ -139,11 +131,52 @@ export default function PhysicsCanvas({data}) {
             }
 
             let stars = energyQuanta;
-            let bars = latticeSize - 1;
+            // We have one extra system, the N-level system.
+            let bars = latticeSize;
             const sbsize = stars + bars;
 
             // Fill our lattice according to "stars and bars"
             let index = 0;
+
+            // Quanta in the N-level system
+            let NsystemQuanta = 0
+
+            let istars = stars
+            let ibars = bars
+            let iindex = index
+            do {
+                NsystemQuanta = 0
+
+                istars = stars
+                ibars = bars
+                iindex = index
+
+                let i = 0
+                let bar = false
+                while(i < sbsize && !bar){
+                    // Random variable to decide between star and bar.
+                    let r = Math.random() * (istars + ibars);
+                    // Weighted sampling:
+                    // Choose star
+                    if (r <= istars) {
+                        NsystemQuanta += 1;
+                        istars -= 1;
+                    }
+                    // Choose bar
+                    else {
+                        bar = true
+                        iindex += 1;
+                        ibars -= 1;
+                    }
+                    i += 1
+                }
+            }while (NsystemQuanta >= N)
+
+            nSystemTarget.current = NsystemQuanta
+
+            stars = istars
+            bars = ibars
+            index = iindex
 
             for (let i = 0; i < sbsize; i++) {
                 // Random variable to decide between star and bar.
@@ -163,7 +196,7 @@ export default function PhysicsCanvas({data}) {
 
             // Stars and bars to partition the quanta (even distribution between microstates)
         },
-        [energyQuanta, latticeSize],
+        [energyQuanta, latticeSize, N],
     );
 
     useEffect(() => {
@@ -183,18 +216,12 @@ export default function PhysicsCanvas({data}) {
             .add(params.current, "latticewidth", 1, 64)
             .step(1)
             .onFinishChange((newValue) => {
-                if (!(params.current.systemSize === Math.floor((newValue * newValue) / 2))) {
-                    params.current.systemSize = Math.floor((newValue * newValue) / 2);
-                    setLatticeDims([newValue, newValue]);
-                }
+                setLatticeDims([newValue, newValue]);
             })
-            .name("Lattice width");
+            .name("Heat bath dim.");
 
         gui.add(params.current, "deltatime", 10, 1000).name("Time step (ms)");
-        gui
-            .add(params.current, "systemSize", 1, latticeSize)
-            .step(1)
-            .name("System size");
+
         gui
             .add(params.current, "energyQuanta", 0, 10000)
             .step(1)
@@ -229,7 +256,7 @@ export default function PhysicsCanvas({data}) {
             if (delta > frameInterval) {
                 // Adjust for "excess waiting"
                 then = now - (delta % frameInterval);
-                const pdata_pr = accumState[Math.max(params.current.systemSize - 1, 0)];
+                const pdata_pr = accumState[0];
 
                 // Compute bounds to render
                 for (let i = 0; i < energyQuanta + 1; i++) {
@@ -243,7 +270,7 @@ export default function PhysicsCanvas({data}) {
                     }
                 }
 
-                const colorArray = makeHeatmapColors(systemState, energyQuanta);
+                const colorArray = makeHeatmapColors(heatBathState, energyQuanta);
                 energyTexture.image.data.set(colorArray);
                 energyTexture.needsUpdate = true; // Tell Three.js to update the texture
 
@@ -253,12 +280,14 @@ export default function PhysicsCanvas({data}) {
 
         // For simulation ("physics") updates
         const simulate = () => {
-            distributeQuanta(energyQuanta, systemState);
+            distributeQuanta(energyQuanta, heatBathState, nSystemState);
+            nSystemColor.current = makeLoneSystemColor(nSystemState.current, N)
+            console.log(nSystemColor.current)
 
             // Creating final array
             let sum = 0;
             // Using map to perform transformations
-            let partialSums = systemState.map((e) => {
+            let partialSums = heatBathState.map((e) => {
                 sum = sum + e;
                 return sum;
             });
@@ -290,72 +319,99 @@ export default function PhysicsCanvas({data}) {
         energyQuanta,
         accumState,
         distributeQuanta,
-        systemState,
+        heatBathState,
         energyTexture,
     ]);
-
-    overlayTexture.image.data.set(
-        makeOverlay(latticeSize, params.current.systemSize),
-    );
-    overlayTexture.needsUpdate = true;
 
     return (
         // TODO: Set bg to a translucent color?
         // TODO: Move this configuration stuff to other component
         <>
-            <div className="m-auto basis-1/4 ">
-                <Canvas
-                    className="aspect-square  border-stone-600 border-2"
-                    orthographic
-                    camera={{
-                        left: -1,
-                        right: 1,
-                        top: 1,
-                        bottom: -1,
-                        position: [0, 0, 100],
-                    }}
-                >
-                    <color attach="background" args={["black"]}/>
-                    <gridHelper
-                        args={[10, 10, `white`, `gray`]}
-                        rotation={[Math.PI / 2, 0, 0]}
-                    />
-                    <TexturedQuad
-                        texture={energyTexture}
-                        transparent_p={false}
-                    ></TexturedQuad>
-                    <TexturedQuad
-                        texture={overlayTexture}
-                        transparent_p={false}
-                        position={[0, 0, 1]}
-                    ></TexturedQuad>
-                </Canvas>
-            </div>
-            <div className="m-0 basis-full sm:basis-3/5  aspect-[4/3]">
-                <Histogram
-                    idata={pdata}
-                    min_ind={minind.current}
-                    max_ind={maxind.current}
-                />
-                <div>
-                    <div className="columns-2">
-                        <p className="text-right">
-                            {"Standard deviation: "}
-                        </p>
-                        <p className="text-right">
-                            {"Std. dev. relative to number of quanta: "}
-                        </p>
-                        <p className="text-left">
-                            {
-                                stdDevInd(pdata).toFixed(4)
-                            }
-                        </p>
-                        <p className="text-left">
-                            {
-                                (stdDevInd(pdata) * ((energyQuanta === 0) ? 0.0 : (1 / energyQuanta))).toExponential(3)
-                            }
-                        </p>
+            <div className="flex flex-wrap w-full">
+                <ArcherContainer className="m-auto basis-2/5" strokeColor="gray" startMarker={false} endMarker={false}>
+                    <div className="flex">
+                        <div className="w-1/2">
+                            <p className="text-2xl italic text-nowrap">
+                                Heat bath
+                            </p>
+                            <div className="aspect-square">
+                                <ArcherElement id="heatbath" relations={[{
+                                    targetId: "nlevelsystem",
+                                    sourceAnchor: 'middle',
+                                    targetAnchor: 'middle',
+                                    startMarker: false,
+                                    endMarker: false,
+                                }]}>
+                                    <Canvas
+                                        className=" border-stone-600 border-2"
+                                        orthographic
+                                        camera={{
+                                            left: -1,
+                                            right: 1,
+                                            top: 1,
+                                            bottom: -1,
+                                            position: [0, 0, 100],
+                                        }}
+                                    >
+                                        {/*TODO: CHANGE THIS, COULD CAUSE SEIZURES*/}
+                                        <color attach="background" args={["black"]}/>
+                                        <TexturedQuad
+                                            texture={energyTexture}
+                                            transparent_p={false}
+                                        ></TexturedQuad>
+                                    </Canvas>
+                                </ArcherElement>
+                            </div>
+                        </div>
+                        <div className="w-1/2 ml-auto my-auto">
+                            <p className="text-2xl italic text-center text-nowrap">
+                                N-level system
+                            </p>
+                            <div className="aspect-square w-3 m-auto my-2">
+                                <ArcherElement id="nlevelsystem">
+                                    <Canvas
+                                        className="border-stone-600 border-2"
+                                        orthographic
+                                        camera={{
+                                            left: -1,
+                                            right: 1,
+                                            top: 1,
+                                            bottom: -1,
+                                            position: [0, 0, 100],
+                                        }}
+                                    >
+                                        <color attach="background" args={nSystemColor.current}/>
+                                    </Canvas>
+                                </ArcherElement>
+                            </div>
+                        </div>
                     </div>
+                </ArcherContainer>
+                <div className="m-auto basis-full sm:basis-1/2 aspect-[4/3]">
+                        <Histogram
+                                   idata={pdata}
+                                   min_ind={minind.current}
+                                   max_ind={maxind.current}
+                                   flipped={true}
+                        />
+                        <div className="columns-2">
+                            <p className="text-right">
+                                {"Standard deviation: "}
+                            </p>
+                            <p className="text-right">
+                                {"Std. dev. relative to number of quanta: "}
+                            </p>
+                            <p className="text-left">
+                                {
+                                    stdDevInd(pdata).toFixed(4)
+                                }
+                            </p>
+                            <p className="text-left">
+                                {
+                                    (stdDevInd(pdata) * ((energyQuanta === 0) ? 0.0 : (1 / energyQuanta))).toExponential(3)
+                                }
+                            </p>
+                        </div>
                 </div>
             </div>
         </>

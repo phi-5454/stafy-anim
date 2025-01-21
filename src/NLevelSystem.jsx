@@ -1,7 +1,7 @@
 import PhysicsCanvas from "./PhysicsCanvas.jsx";
 import Markdown from "react-markdown";
 import React, {useEffect, useState} from "react";
-import PhysicsCanvasNLevel from "./assets/PhysicsCanvasNLevel.jsx";
+import PhysicsCanvasNLevel from "./PhysicsCanvasNLevel.jsx";
 
 const NLevelSystem = () => {
 

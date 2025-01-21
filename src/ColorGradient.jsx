@@ -33,5 +33,11 @@ const BlackbodyColormap = new ColorGradient({
   alpha: 1,
 });
 
-export default BlackbodyColormap;
-//export { BlackbodyColormap };
+const BlueColormap = new ColorGradient({
+  colormap: "bone",
+  nshades: 100,
+  format: "float",
+  alpha: 1,
+});
+
+export {BlackbodyColormap, BlueColormap};
