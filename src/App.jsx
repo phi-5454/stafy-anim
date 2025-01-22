@@ -39,7 +39,7 @@ function App() {
                           className="flex flex-wrap sm:w-4/5 w-full m-0 justify-center p-0 sm:m-auto align-middle pb-5">
                               <Routes>
                                   {/*<Route path="*" element={<EinsteinSolid/>}/>*/}
-                                  <Route path="*" element={<NLevelSystem/>}/>
+                                  <Route path="*" element={<EinsteinSolid/>}/>
                                   <Route path="/einsteinsolid" element={<EinsteinSolid/>}/>
                                   <Route path="/nlevelsystem" element={<NLevelSystem/>}/>
                               </Routes>

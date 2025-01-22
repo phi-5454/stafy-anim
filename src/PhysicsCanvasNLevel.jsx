@@ -13,10 +13,11 @@ import * as THREE from "three";
 import {bar} from "plotly.js/src/traces/parcoords/constants.js";
 import TexturedQuad from "./TexturedQuad.jsx";
 import Histogram from "./Histogram.jsx";
-import {stdDev, arrSum, stdDevInd} from "./MathUtilities.jsx"
+import {stdDev, arrSum, stdDevInd, meanInd} from "./MathUtilities.jsx"
 import {Vector3, Vector4} from "three";
 
 import {ArcherContainer, ArcherElement} from 'react-archer';
+import HistogramNLevel from "./HistogramNLevel.jsx";
 
 import("simple-statistics");
 
@@ -37,11 +38,10 @@ const makeHeatmapColors = (data, quanta) => {
 };
 
 // Creates color value for N-level system
-// TODO: Make colormap uniform with rest
-const makeLoneSystemColor = (value, N) => {
-    console.log(value)
-    const cm = BlackbodyColormap;
-    return cm.getColor(value, 0, Math.max(N + 1, Math.max(10, 1)));
+const makeLoneSystemColor = (value, N, quanta) => {
+    const cm = BlueColormap;
+    //return cm.getColor(value, 0, Math.max(N + 1, Math.max(10, 1)));
+    return cm.getLogColor(value, 0, Math.max(quanta, 1));
 };
 
 
@@ -58,10 +58,15 @@ function makeStateArray(latticeSize) {
 export default function PhysicsCanvasNLevel({data}) {
     const [renderID, setRenderID] = useState(0);
     const [latticeDims, setLatticeDims] = useState([32, 32]);
-    const [energyQuanta, setEnergyQuanta] = useState(5000);
-    const [N, setN] = useState(10);
+    const [DeltaE, setDeltaE] = useState(1);
+    const [DeltaEkbT, setDeltaEkbT] = useState(1);
+    const [N, setN] = useState(2);
+
 
     const latticeSize = latticeDims[0] * latticeDims[1];
+
+    // Average energy of oscillator U=<E> in Einstein solid: -1/Z\parital_\beta Z = DeltaE/2 coth(DeltaE/2kT)
+    const energyQuanta = latticeSize * DeltaE/(-1+Math.exp(DeltaEkbT))
 
     const heatBathState = useMemo(() => {
         return makeStateArray(latticeSize);
@@ -77,6 +82,8 @@ export default function PhysicsCanvasNLevel({data}) {
         deltatime: 100,
         systemSize: 1,
         N:2,
+        DeltaE:1,
+        DeltaEkbT:1,
         latticewidth: latticeDims[0],
         energyQuanta: energyQuanta,
     });
@@ -85,16 +92,14 @@ export default function PhysicsCanvasNLevel({data}) {
     // Info on each simulation cycle, used for visualization
     const accumState = useMemo(() => {
         if (renderID !== null && latticeDims !== null) {
-            return Array.from({length: latticeSize}, () =>
-                Array.from({length: energyQuanta + 1}, () => {
-                    return 0;
-                }),
+            return Array.from({length: N}, () =>
+                    0,
             );
         }
-    }, [renderID, latticeDims, latticeSize, energyQuanta]);
+    }, [renderID, latticeDims, latticeSize, energyQuanta, N]);
 
     // Array to display on histogram
-    const [pdata, setPdata] = useState(Array.from(accumState[0]));
+    const [pdata, setPdata] = useState(Array.from(accumState));
 
     // Textures for the system visualization
     // Create the texture from the array
@@ -109,8 +114,8 @@ export default function PhysicsCanvasNLevel({data}) {
         [latticeDims, latticeSize],
     );
 
-    let minind = useRef(0);
-    let maxind = useRef(0);
+    const minind = 0;
+    const maxind = N-1;
 
     /**
      * @brief Distributes n objects into x boxes, using an even distribution
@@ -120,6 +125,7 @@ export default function PhysicsCanvasNLevel({data}) {
      *
      * @return
      */
+        // TODO: Something's wrong with the first pixel (always 0)
     const distributeQuanta = useCallback(
         (n, target, nSystemTarget) => {
             //let remainingQuanta = n;
@@ -130,10 +136,10 @@ export default function PhysicsCanvasNLevel({data}) {
                 target[i] = 0;
             }
 
-            let stars = energyQuanta;
+            // OBSERVE: Round off probabilistically, based on the decimal of the energyQuanta value
+            let stars = Math.floor(energyQuanta) + (Math.random() < (energyQuanta - Math.floor(energyQuanta)) ? 1 : 0 );
             // We have one extra system, the N-level system.
             let bars = latticeSize;
-            const sbsize = stars + bars;
 
             // Fill our lattice according to "stars and bars"
             let index = 0;
@@ -143,17 +149,17 @@ export default function PhysicsCanvasNLevel({data}) {
 
             let istars = stars
             let ibars = bars
-            let iindex = index
+            const isbsize = stars + bars;
+
             do {
                 NsystemQuanta = 0
 
                 istars = stars
                 ibars = bars
-                iindex = index
 
                 let i = 0
                 let bar = false
-                while(i < sbsize && !bar){
+                while(i < isbsize && !bar){
                     // Random variable to decide between star and bar.
                     let r = Math.random() * (istars + ibars);
                     // Weighted sampling:
@@ -165,7 +171,6 @@ export default function PhysicsCanvasNLevel({data}) {
                     // Choose bar
                     else {
                         bar = true
-                        iindex += 1;
                         ibars -= 1;
                     }
                     i += 1
@@ -176,7 +181,8 @@ export default function PhysicsCanvasNLevel({data}) {
 
             stars = istars
             bars = ibars
-            index = iindex
+            const sbsize = stars + bars;
+            index = 0
 
             for (let i = 0; i < sbsize; i++) {
                 // Random variable to decide between star and bar.
@@ -212,23 +218,43 @@ export default function PhysicsCanvasNLevel({data}) {
 
         gui.add(obj, "restartSim", "Restart simulation");
 
+        /*
         gui
             .add(params.current, "latticewidth", 1, 64)
             .step(1)
             .onFinishChange((newValue) => {
-                setLatticeDims([newValue, newValue]);
+                if (!(params.current.systemSize === Math.floor((newValue * newValue) / 2))) {
+                    params.current.systemSize = Math.floor((newValue * newValue) / 2);
+                    setLatticeDims([newValue, newValue]);
+                }
             })
             .name("Heat bath dim.");
+
+         */
 
         gui.add(params.current, "deltatime", 10, 1000).name("Time step (ms)");
 
         gui
-            .add(params.current, "energyQuanta", 0, 10000)
+            .add(params.current, "N", 1, 64)
             .step(1)
             .onFinishChange((newValue) => {
-                setEnergyQuanta(newValue);
+                setN(newValue);
             })
-            .name("Energy quanta");
+            .name("N");
+
+        gui
+            .add(params.current, "DeltaE", 1e-5, 10)
+            .onFinishChange((newValue) => {
+                setDeltaE(newValue);
+            })
+            .name("Delta E");
+
+        gui
+            .add(params.current, "DeltaEkbT", 1e-2, 10)
+            .onFinishChange((newValue) => {
+                setDeltaEkbT(newValue);
+            })
+            .name("DeltaE/kT");
         /*
           .add(valueRef.current, "value", 0, 100)
           .name("Value")
@@ -256,19 +282,7 @@ export default function PhysicsCanvasNLevel({data}) {
             if (delta > frameInterval) {
                 // Adjust for "excess waiting"
                 then = now - (delta % frameInterval);
-                const pdata_pr = accumState[0];
-
-                // Compute bounds to render
-                for (let i = 0; i < energyQuanta + 1; i++) {
-                    if (pdata_pr[i] !== 0) {
-                        maxind.current = i;
-                    }
-                }
-                for (let i = energyQuanta; i >= 0; i--) {
-                    if (pdata_pr[i] !== 0) {
-                        minind.current = i;
-                    }
-                }
+                const pdata_pr = accumState;
 
                 const colorArray = makeHeatmapColors(heatBathState, energyQuanta);
                 energyTexture.image.data.set(colorArray);
@@ -281,21 +295,9 @@ export default function PhysicsCanvasNLevel({data}) {
         // For simulation ("physics") updates
         const simulate = () => {
             distributeQuanta(energyQuanta, heatBathState, nSystemState);
-            nSystemColor.current = makeLoneSystemColor(nSystemState.current, N)
-            console.log(nSystemColor.current)
+            nSystemColor.current = makeLoneSystemColor(nSystemState.current, N, energyQuanta)
 
-            // Creating final array
-            let sum = 0;
-            // Using map to perform transformations
-            let partialSums = heatBathState.map((e) => {
-                sum = sum + e;
-                return sum;
-            });
-
-            // Keep track of system's configurations
-            partialSums.forEach((value, index) => {
-                accumState[index][value] += 1;
-            });
+            accumState[nSystemState.current] += 1;
 
             //updaterID = requestAnimationFrame(simulate);
             updaterID = setTimeout(simulate, params.current.deltatime);
@@ -321,6 +323,7 @@ export default function PhysicsCanvasNLevel({data}) {
         distributeQuanta,
         heatBathState,
         energyTexture,
+        N,
     ]);
 
     return (
@@ -365,7 +368,7 @@ export default function PhysicsCanvasNLevel({data}) {
                         </div>
                         <div className="w-1/2 ml-auto my-auto">
                             <p className="text-2xl italic text-center text-nowrap">
-                                N-level system
+                                {`${N}-level system`}
                             </p>
                             <div className="aspect-square w-3 m-auto my-2">
                                 <ArcherElement id="nlevelsystem">
@@ -388,27 +391,19 @@ export default function PhysicsCanvasNLevel({data}) {
                     </div>
                 </ArcherContainer>
                 <div className="m-auto basis-full sm:basis-1/2 aspect-[4/3]">
-                        <Histogram
+                        <HistogramNLevel
                                    idata={pdata}
-                                   min_ind={minind.current}
-                                   max_ind={maxind.current}
+                                   min_ind={minind}
+                                   max_ind={maxind}
                                    flipped={true}
                         />
                         <div className="columns-2">
                             <p className="text-right">
-                                {"Standard deviation: "}
-                            </p>
-                            <p className="text-right">
-                                {"Std. dev. relative to number of quanta: "}
+                                {"Mean: "}
                             </p>
                             <p className="text-left">
                                 {
-                                    stdDevInd(pdata).toFixed(4)
-                                }
-                            </p>
-                            <p className="text-left">
-                                {
-                                    (stdDevInd(pdata) * ((energyQuanta === 0) ? 0.0 : (1 / energyQuanta))).toExponential(3)
+                                    meanInd(pdata).toFixed(4)
                                 }
                             </p>
                         </div>
