@@ -4,7 +4,7 @@ import "./App.css";
 
 import React from "react";
 
-import {BrowserRouter, Link, Route, Router, Routes} from "react-router-dom";
+import {BrowserRouter, HashRouter, Link, Route, Router, Routes} from "react-router-dom";
 import EinsteinSolid from "./EinsteinSolid.jsx";
 import NLevelSystem from "./NLevelSystem.jsx";
 
@@ -20,7 +20,7 @@ function App() {
       //<div className="w-screen h-screen fixed top-0 left-0">
       <>
           <div className="w-full m-auto font-serif">
-              <BrowserRouter
+              <HashRouter
                   future={{
                       v7_startTransition: true,
                       v7_relativeSplatPath: true
@@ -71,7 +71,7 @@ function App() {
                       </div>
                   </div>
               </div>
-          </BrowserRouter>
+          </HashRouter>
           </div>
       </>
   );
