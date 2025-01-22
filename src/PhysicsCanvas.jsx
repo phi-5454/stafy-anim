@@ -8,7 +8,7 @@ import React, {
 import {Canvas} from "@react-three/fiber";
 import * as dat from "dat.gui";
 
-import BlackbodyColormap from "./ColorGradient";
+import {BlackbodyColormap} from "./ColorGradient";
 import * as THREE from "three";
 import {bar} from "plotly.js/src/traces/parcoords/constants.js";
 import TexturedQuad from "./TexturedQuad.jsx";
@@ -242,7 +242,6 @@ export default function PhysicsCanvas({data}) {
                         minind.current = i;
                     }
                 }
-                console.log(0.00231.toExponential(3))
 
                 const colorArray = makeHeatmapColors(systemState, energyQuanta);
                 energyTexture.image.data.set(colorArray);

@@ -1,7 +1,7 @@
 import Plot from "react-plotly.js";
 import React, {forwardRef} from "react";
 
-const Histogram = ({idata, min_ind, max_ind, flipped=false, fixed_range=false}) =>{
+const Histogram = ({idata, min_ind, max_ind, flipped=false}) =>{
 
     const xtitle=flipped?"Number of occurrences":"Number of quanta in the system"
     const ytitle=flipped?"Number of quanta in the system":"Number of occurrences"
@@ -53,6 +53,7 @@ const Histogram = ({idata, min_ind, max_ind, flipped=false, fixed_range=false}) 
             },
             yaxis: {
                 //tickangle:-45,
+                range:[min_ind-0.5, max_ind + 0.5],
                 title: { text: ytitle, standoff: 10 },
                 gridcolor: "#444444",
                 zerolinecolor: "#888888",

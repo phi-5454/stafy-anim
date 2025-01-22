@@ -30,6 +30,13 @@ export const arrSum = (arr) => {
     return arr.reduce((sum, value) => sum + value, 0)
 }
 
+export const meanInd = (arr) => {
+    const setsum = arrSum(arr)
+    if(setsum === 0) return 0
+    const indPDF = arr.map((v, i) => v / setsum)
+    return arrSum(indPDF.map((v, i) => v * i));
+}
+
 // get random in [0, max) (exclusive)
 export const getRandomInt = (max) => {
     return Math.floor(Math.random() * max);
